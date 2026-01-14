@@ -1,0 +1,442 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+<Project>
+    <PropertyGroup>
+        <_ItexoftNetMajor Condition="'$(TargetFramework)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(TargetFramework)', '\d+').Value)</_ItexoftNetMajor>
+        <_ItexoftExeExt Condition="$([MSBuild]::IsOSPlatform('windows'))">.exe</_ItexoftExeExt>
+        <_ItexoftExeExt Condition="'$(_ItexoftExeExt)' == ''"></_ItexoftExeExt>
+        <_ItexoftDotNetExe>dotnet</_ItexoftDotNetExe>
+        <_ItexoftStandardOutputImportance Condition="'$(WasmEnableVerbose)' == 'true'">High</_ItexoftStandardOutputImportance>
+        <_ItexoftStandardOutputImportance Condition="'$(WasmEnableVerbose)' != 'true'">Low</_ItexoftStandardOutputImportance>
+    </PropertyGroup>
+    <Import Project="Sdk.props" Sdk="Microsoft.NET.Runtime.MonoAOTCompiler.Task.net$(_ItexoftNetMajor)"/>
+    <PropertyGroup>
+        <_ItexoftNativePath>$([System.IO.Path]::Combine('runtimes', '$(SystemRuntimeIdentifier)', 'native'))</_ItexoftNativePath>
+        <_ItexoftILLinkTasksDir Condition="'$(ILLinkTasksAssembly)' != ''">$([System.IO.Path]::GetDirectoryName('$(ILLinkTasksAssembly)'))</_ItexoftILLinkTasksDir>
+        <_ItexoftILLinkToolPath Condition="'$(_ItexoftILLinkTasksDir)' != ''">$([MSBuild]::NormalizePath('$(_ItexoftILLinkTasksDir)', 'illink.dll'))</_ItexoftILLinkToolPath>
+        <_ItexoftLlvmRoot>$([MSBuild]::NormalizePath('$(NuxmuxBaseDir)', 'llvm-emscripten'))</_ItexoftLlvmRoot>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'win-x86'">$(Pkgllvm_wasm-tools_win-x86)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'win-x64'">$(Pkgllvm_wasm-tools_win-x64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'win-arm64'">$(Pkgllvm_wasm-tools_win-arm64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'linux-x64'">$(Pkgllvm_wasm-tools_linux-x64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'linux-arm64'">$(Pkgllvm_wasm-tools_linux-arm64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'osx-x64'">$(Pkgllvm_wasm-tools_osx-x64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmTools Condition="'$(SystemRuntimeIdentifier)' == 'osx-arm64'">$(Pkgllvm_wasm-tools_osx-arm64)</_ItexoftLlvmWasmTools>
+        <_ItexoftLlvmWasmToolsRoot>$([MSBuild]::NormalizeDirectory('$(_ItexoftLlvmWasmTools)', '$(_ItexoftNativePath)'))</_ItexoftLlvmWasmToolsRoot>
+        <_ItexoftIlnegRoot>$([MSBuild]::NormalizeDirectory('$(Pkgilneg)', '$(_ItexoftNativePath)'))</_ItexoftIlnegRoot>
+        <_ItexoftLlvmErRoot>$([MSBuild]::NormalizeDirectory('$(Pkgllvm_er)', '$(_ItexoftNativePath)'))</_ItexoftLlvmErRoot>
+    </PropertyGroup>
+    <PropertyGroup>
+        <_ItexoftPacks Condition="'$(NetCoreRoot)' != ''">$([MSBuild]::EnsureTrailingSlash($([MSBuild]::NormalizeDirectory($(NetCoreRoot), 'packs'))))</_ItexoftPacks>
+        <_ItexoftRuntimePackVersion>$(_RuntimePackInWorkloadVersionCurrent)</_ItexoftRuntimePackVersion>
+        <_ItexoftMonoAotCompilerTaskRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.MonoAOTCompiler.Task', '$(_ItexoftRuntimePackVersion)'))</_ItexoftMonoAotCompilerTaskRuntimePack>
+        <_ItexoftMonoTargetsSdkRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.MonoTargets.Sdk', '$(_ItexoftRuntimePackVersion)'))</_ItexoftMonoTargetsSdkRuntimePack>
+        <_ItexoftWebAssemblySdkRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.WebAssembly.Sdk', '$(_ItexoftRuntimePackVersion)'))</_ItexoftWebAssemblySdkRuntimePack>
+        <_ItexoftNetCoreAppRuntimeAotCrossRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.AOT.$(SystemRuntimeIdentifier).Cross.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeAotCrossRuntimePack>
+        <_ItexoftNetCoreAppRuntimeMonoRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoRuntimePack>
+        <_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.multithread.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>
+        <_ItexoftEmscriptenCachePackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Cache.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenCachePackRoot>
+        <_ItexoftEmscriptenCacheRuntimePack Condition="'$(_ItexoftEmscriptenCachePackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenCachePackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenCacheRuntimePack>
+        <_ItexoftEmscriptenNodePackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Node.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenNodePackRoot>
+        <_ItexoftEmscriptenNodeRuntimePack Condition="'$(_ItexoftEmscriptenNodePackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenNodePackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenNodeRuntimePack>
+        <_ItexoftEmscriptenSdkPackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Sdk.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenSdkPackRoot>
+        <_ItexoftEmscriptenSdkRuntimePack Condition="'$(_ItexoftEmscriptenSdkPackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenSdkPackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenSdkRuntimePack>
+    </PropertyGroup>
+    <PropertyGroup>
+        <_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack)</_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack>
+        <_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack Condition="'$(WasmEnableThreads)' != 'true'">$(_ItexoftNetCoreAppRuntimeMonoRuntimePack)</_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack>
+        <_ItexoftWasmIntermediateRoot>$([MSBuild]::NormalizeDirectory($(IntermediateOutputPath), 'wasm'))</_ItexoftWasmIntermediateRoot>
+        <_ItexoftWasmIntermediateDir Condition="'$(_IsPublishing)' == 'true'">$([MSBuild]::NormalizeDirectory($(_ItexoftWasmIntermediateRoot), 'publish'))</_ItexoftWasmIntermediateDir>
+        <_ItexoftWasmIntermediateDir Condition="'$(_IsPublishing)' != 'true'">$([MSBuild]::NormalizeDirectory($(_ItexoftWasmIntermediateRoot), 'build'))</_ItexoftWasmIntermediateDir>
+        <_ItexoftEmscriptenCacheDir Condition="'$(WasmEmCacheDir)' != ''">$([MSBuild]::NormalizeDirectory('$(WasmEmCacheDir)'))</_ItexoftEmscriptenCacheDir>
+        <_ItexoftEmscriptenCacheDir Condition="'$(_ItexoftEmscriptenCacheDir)' == ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftWasmIntermediateDir)', 'em-cache'))</_ItexoftEmscriptenCacheDir>
+        <_ItexoftEmscriptenConfigPath>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'emscripten.config'))</_ItexoftEmscriptenConfigPath>
+        <_ItexoftEmccLinkRsp>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'emcc-link.rsp'))</_ItexoftEmccLinkRsp>
+        <_ItexoftWasmOutputDir Condition="'$(_IsPublishing)' == 'true' and '$(PublishDir)' != ''">$([MSBuild]::NormalizeDirectory($(PublishDir)))</_ItexoftWasmOutputDir>
+        <_ItexoftWasmOutputDir Condition="'$(_ItexoftWasmOutputDir)' == ''">$([MSBuild]::NormalizeDirectory($(TargetDir)))</_ItexoftWasmOutputDir>
+        <_ItexoftWasmOutputPath>$([MSBuild]::NormalizePath($(_ItexoftWasmOutputDir), '$(TargetName).wasm'))</_ItexoftWasmOutputPath>
+        <_ItexoftWasmIntermediateOutputPath>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '$(TargetName).wasm'))</_ItexoftWasmIntermediateOutputPath>
+        <_ItexoftWasmIntermediateOutputTempPath>$(_ItexoftWasmIntermediateOutputPath).tmp</_ItexoftWasmIntermediateOutputTempPath>
+        <_ItexoftTrimManagedAssemblies Condition="'$(_ItexoftTrimManagedAssemblies)' == ''">true</_ItexoftTrimManagedAssemblies>
+        <_ItexoftTrimIntermediateDir Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizeDirectory($(_ItexoftWasmIntermediateRoot), 'linked'))</_ItexoftTrimIntermediateDir>
+        <_ItexoftTrimIntermediateDirNoTrailing Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftTrimIntermediateDir)'))</_ItexoftTrimIntermediateDirNoTrailing>
+        <_ItexoftTrimDescriptorPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateRoot), 'itexoft-trim-roots.xml'))</_ItexoftTrimDescriptorPath>
+        <_ItexoftILLinkRspPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateRoot), 'itexoft-ilink.rsp'))</_ItexoftILLinkRspPath>
+        <_ItexoftTrimmedAssemblyPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftTrimIntermediateDir), '$(TargetFileName)'))</_ItexoftTrimmedAssemblyPath>
+        <_ItexoftWasmStripSymbols>$(StripSymbols)</_ItexoftWasmStripSymbols>
+        <_ItexoftWasmDebug>true</_ItexoftWasmDebug>
+        <_ItexoftWasmDebug Condition="'$(DebugSymbols)' == 'false'">false</_ItexoftWasmDebug>
+        <_ItexoftWasmDebug Condition="'$(DebugType)' == 'none'">false</_ItexoftWasmDebug>
+        <_ItexoftWasmDebug Condition="'$(PublishTrimmed)' == 'true'">false</_ItexoftWasmDebug>
+        <_ItexoftOptimizationPreference Condition="'$(OptimizationPreference)' == 'Size'">Size</_ItexoftOptimizationPreference>
+        <_ItexoftOptimizationPreference Condition="'$(OptimizationPreference)' == 'Speed'">Speed</_ItexoftOptimizationPreference>
+        <_ItexoftIlnegPackageRoot>$(Pkgilneg)</_ItexoftIlnegPackageRoot>
+        <_ItexoftLlvmErPackageRoot>$(Pkgllvm_er)</_ItexoftLlvmErPackageRoot>
+    </PropertyGroup>
+    <PropertyGroup>
+        <_ItexoftRuntimeNativeDir>$([MSBuild]::NormalizeDirectory($(_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack), 'runtimes', '$(RuntimeIdentifier)', 'native'))</_ItexoftRuntimeNativeDir>
+        <_ItexoftRuntimeLibManagedDir>$([MSBuild]::NormalizeDirectory($(_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack), 'runtimes', '$(RuntimeIdentifier)', 'lib', '$(TargetFramework)'))</_ItexoftRuntimeLibManagedDir>
+        <_ItexoftEmscriptenToolsRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenSdkRuntimePack), 'tools'))</_ItexoftEmscriptenToolsRoot>
+        <_ItexoftEmscriptenBinRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'bin'))</_ItexoftEmscriptenBinRoot>
+        <_ItexoftEmscriptenRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'emscripten'))</_ItexoftEmscriptenRoot>
+        <_ItexoftLlvmToolsBinRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftLlvmWasmToolsRoot), 'bin'))</_ItexoftLlvmToolsBinRoot>
+        <_ItexoftEmscriptenNodeToolsRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenNodeRuntimePack), 'tools'))</_ItexoftEmscriptenNodeToolsRoot>
+        <_ItexoftMonoAotCrossPath>@(MonoAotCrossCompiler->WithMetadataValue('RuntimeIdentifier','$(RuntimeIdentifier)')->'%(Identity)')</_ItexoftMonoAotCrossPath>
+        <_ItexoftLlvmOptPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'opt$(_ItexoftExeExt)'))</_ItexoftLlvmOptPath>
+        <_ItexoftLlvmLlcPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llc$(_ItexoftExeExt)'))</_ItexoftLlvmLlcPath>
+        <_ItexoftLlvmDisPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-dis$(_ItexoftExeExt)'))</_ItexoftLlvmDisPath>
+        <_ItexoftLlvmAsPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-as$(_ItexoftExeExt)'))</_ItexoftLlvmAsPath>
+        <_ItexoftLlvmNmPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-nm$(_ItexoftExeExt)'))</_ItexoftLlvmNmPath>
+        <_ItexoftLlvmObjcopyPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-objcopy$(_ItexoftExeExt)'))</_ItexoftLlvmObjcopyPath>
+        <_ItexoftIlnegToolPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'ilneg$(_ItexoftExeExt)'))</_ItexoftIlnegToolPath>
+        <_ItexoftLlvmErPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-er$(_ItexoftExeExt)'))</_ItexoftLlvmErPath>
+        <_ItexoftEmccFileName Condition="$([MSBuild]::IsOSPlatform('windows'))">emcc.bat</_ItexoftEmccFileName>
+        <_ItexoftEmccFileName Condition="!$([MSBuild]::IsOSPlatform('windows'))">emcc</_ItexoftEmccFileName>
+        <_ItexoftEmccPath>$([MSBuild]::NormalizePath($(_ItexoftEmscriptenRoot), '$(_ItexoftEmccFileName)'))</_ItexoftEmccPath>
+        <_ItexoftWasmOptPath>$([MSBuild]::NormalizePath($(_ItexoftEmscriptenBinRoot), 'wasm-opt$(_ItexoftExeExt)'))</_ItexoftWasmOptPath>
+        <_ItexoftNodeJsPath>$([MSBuild]::NormalizePath($(_ItexoftEmscriptenNodeToolsRoot), 'bin', 'node$(_ItexoftExeExt)'))</_ItexoftNodeJsPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <NuxmuxDir Include="$(_ItexoftEmscriptenBinRoot)*" Path="$(_ItexoftLlvmRoot)"/>
+        <NuxmuxDir Include="$(_ItexoftLlvmToolsBinRoot)*" Path="$(_ItexoftLlvmRoot)"/>
+        <NuxmuxDir Include="$(_ItexoftIlnegRoot)*" Path="$(_ItexoftLlvmRoot)"/>
+        <NuxmuxDir Include="$(_ItexoftLlvmErRoot)*" Path="$(_ItexoftLlvmRoot)"/>
+    </ItemGroup>
+    <PropertyGroup>
+        <_ItexoftMonoAotArguments>full;deterministic</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotArguments Condition="'$(Optimize)' == 'false'">$(_ItexoftMonoAotArguments);no-opt</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotArguments Condition="!$([MSBuild]::IsOSPlatform('windows'))">$(_ItexoftMonoAotArguments);compile-in-child</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotArguments Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftMonoAotArguments);mattr=simd</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotProcessArguments Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">--wasm-exceptions</_ItexoftMonoAotProcessArguments>
+        <_ItexoftMonoAotProcessArguments Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftMonoAotProcessArguments);--wasm-gc-safepoints</_ItexoftMonoAotProcessArguments>
+        <_ItexoftEmccOpt Condition="'$(WasmEnableVerbose)' == 'true'">-v</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftWasmDebug)' == 'true' or '$(Optimize)' == 'false'">$(_ItexoftEmccOpt) -O0</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">$(_ItexoftEmccOpt) -Oz</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Speed'">$(_ItexoftEmccOpt) -O3</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == ''">$(_ItexoftEmccOpt) -O2</_ItexoftEmccOpt>
+        <_ItexoftEmccCommonFlags>$(_ItexoftEmccOpt)</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(_ItexoftWasmDebug)' == 'true'">$(_ItexoftEmccCommonFlags) -g -s EMIT_PRODUCERS_SECTION=1</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftEmccCommonFlags) -msimd128</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">$(_ItexoftEmccCommonFlags) -fwasm-exceptions</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'default'">$(_ItexoftEmccCommonFlags) -fexceptions</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'none'">$(_ItexoftEmccCommonFlags) -fno-exceptions</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftEmccCommonFlags) -pthread -Wno-experimental</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags Condition="'$(WasmEnableThreads)' == 'true' and $(WasmThreadPoolSize) != ''">$(_ItexoftEmccCommonFlags) -s PTHREAD_POOL_SIZE=$(WasmThreadPoolSize)</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccLinkFlags>-s SIDE_MODULE=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wl,--allow-undefined -Wl,--import-undefined -Wl,--no-entry</_ItexoftEmccLinkFlags>
+        <_ItexoftRunWasmOpt Condition="'$(_ItexoftWasmDebug)' == 'true'">false</_ItexoftRunWasmOpt>
+        <_ItexoftRunWasmOpt Condition="'$(_ItexoftWasmDebug)' != 'true'">true</_ItexoftRunWasmOpt>
+        <_ItexoftWasmOptOpt Condition="'$(Optimize)' == 'false'">-O0</_ItexoftWasmOptOpt>
+        <_ItexoftWasmOptOpt Condition="'$(_ItexoftWasmOptOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">-Oz</_ItexoftWasmOptOpt>
+        <_ItexoftWasmOptOpt Condition="'$(_ItexoftWasmOptOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Speed'">-O3</_ItexoftWasmOptOpt>
+        <_ItexoftWasmOptOpt Condition="'$(_ItexoftWasmOptOpt)' == ''">-O2</_ItexoftWasmOptOpt>
+        <_ItexoftWasmOptFlags>$(_ItexoftWasmOptOpt)</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableSignExt)' == 'true'">$(_ItexoftWasmOptFlags) --enable-sign-ext</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableMutableGlobals)' == 'true'">$(_ItexoftWasmOptFlags) --enable-mutable-globals</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableBulkMemory)' == 'true'">$(_ItexoftWasmOptFlags) --enable-bulk-memory</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableNontrappingFloatToInt)' == 'true'">$(_ItexoftWasmOptFlags) --enable-nontrapping-float-to-int</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableReferenceTypes)' == 'true'">$(_ItexoftWasmOptFlags) --enable-reference-types</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableMultivalue)' == 'true'">$(_ItexoftWasmOptFlags) --enable-multivalue</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableExtendedConst)' == 'true'">$(_ItexoftWasmOptFlags) --enable-extended-const</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableTailCall)' == 'true'">$(_ItexoftWasmOptFlags) --enable-tail-call</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableGC)' == 'true'">$(_ItexoftWasmOptFlags) --enable-gc</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftWasmOptFlags) --enable-threads</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftWasmOptFlags) --enable-simd</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">$(_ItexoftWasmOptFlags) --enable-exception-handling</_ItexoftWasmOptFlags>
+        <_ItexoftWasmOptFlags Condition="'$(_ItexoftWasmDebug)' != 'true'">$(_ItexoftWasmOptFlags) --strip-dwarf --strip-producers</_ItexoftWasmOptFlags>
+        <_ItexoftLlcOpt Condition="'$(_ItexoftWasmDebug)' == 'true' or '$(Optimize)' == 'false'">-O0</_ItexoftLlcOpt>
+        <_ItexoftLlcOpt Condition="'$(_ItexoftLlcOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">-O2</_ItexoftLlcOpt>
+        <_ItexoftLlcOpt Condition="'$(_ItexoftLlcOpt)' == ''">-O2</_ItexoftLlcOpt>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableSIMD)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+simd128</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableSIMD)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != ''">$(_ItexoftLlcMattrFeatures),+simd128</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+bulk-memory'))">$(_ItexoftLlcMattrFeatures),+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+atomics,+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+atomics'))">$(_ItexoftLlcMattrFeatures),+atomics</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+bulk-memory'))">$(_ItexoftLlcMattrFeatures),+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattr Condition="'$(_ItexoftLlcMattrFeatures)' != ''">-mattr=$(_ItexoftLlcMattrFeatures)</_ItexoftLlcMattr>
+    </PropertyGroup>
+    <PropertyGroup>
+        <_ItexoftNuxmuxArgsRewrite>llvm-objcopy s|^\s*(?:\S*llvm-objcopy\s+)?(\S+)\s+\1(\s.*)?\s*$|$1 $1.tmp$2|</_ItexoftNuxmuxArgsRewrite>
+        <_ItexoftNuxmuxArgsRewriteCmd>$([System.String]::Copy('$(_ItexoftNuxmuxArgsRewrite)').Replace('|','^|'))</_ItexoftNuxmuxArgsRewriteCmd>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+        <_ItexoftEmccCommandPrefix>cmd /c &quot;set NUXMUX_ARGS_REWRITE=$(_ItexoftNuxmuxArgsRewriteCmd) &amp;&amp; set EM_CONFIG=$(_ItexoftEmscriptenConfigPath) &amp;&amp; set EM_CACHE=$(_ItexoftEmscriptenCacheDir) &amp;&amp;</_ItexoftEmccCommandPrefix>
+        <_ItexoftEmccCommandSuffix>&quot;</_ItexoftEmccCommandSuffix>
+    </PropertyGroup>
+    <PropertyGroup Condition="!$([MSBuild]::IsOSPlatform('windows'))">
+        <_ItexoftEmccCommandPrefix>NUXMUX_ARGS_REWRITE='$(_ItexoftNuxmuxArgsRewrite)' EM_CONFIG=$(_ItexoftEmscriptenConfigPath) EM_CACHE=$(_ItexoftEmscriptenCacheDir)</_ItexoftEmccCommandPrefix>
+        <_ItexoftEmccCommandSuffix></_ItexoftEmccCommandSuffix>
+    </PropertyGroup>
+    <Target Name="ItexoftResolveWasmToolchain" DependsOnTargets="PrepareForBuild" BeforeTargets="Build">
+        <Error Condition="'$(GenerateRuntimeConfigurationFiles)' == 'true' or '$(GenerateRuntimeConfigDevFile)' == 'true' or '$(GenerateDependencyFile)' == 'true'" Text="Runtime configuration files are not supported in this SDK."/>
+        <Error Condition="'$(SystemRuntimeIdentifier)' == ''" Text="SystemRuntimeIdentifier is not set. Cannot resolve host tool packs."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and ('$(_ItexoftILLinkToolPath)' == '' or !Exists('$(_ItexoftILLinkToolPath)'))" Text="ILLink tool is missing. Install the Microsoft.NET.ILLink.Tasks pack."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftIlnegPackageRoot)' == ''" Text="ilneg package is not resolved. Install the ilneg package."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and ('$(_ItexoftIlnegToolPath)' == '' or !Exists('$(_ItexoftIlnegToolPath)'))" Text="ilneg tool is missing. Install the ilneg package."/>
+        <Error Condition="'$(_ItexoftLlvmErPackageRoot)' == ''" Text="llvm-er package is not resolved. Install the llvm-er package."/>
+        <Error Condition="'$(_ItexoftLlvmErPath)' == '' or !Exists('$(_ItexoftLlvmErPath)')" Text="llvm-er tool is missing. Install the llvm-er package."/>
+        <Error Condition="'$(_ItexoftLlvmWasmToolsRoot)' == ''" Text="llvm.wasm-tools.$(SystemRuntimeIdentifier) is not resolved. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmOptPath)' == '' or !Exists('$(_ItexoftLlvmOptPath)')" Text="LLVM opt tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmLlcPath)' == '' or !Exists('$(_ItexoftLlvmLlcPath)')" Text="LLVM llc tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmDisPath)' == '' or !Exists('$(_ItexoftLlvmDisPath)')" Text="LLVM llvm-dis tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmAsPath)' == '' or !Exists('$(_ItexoftLlvmAsPath)')" Text="LLVM llvm-as tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmNmPath)' == '' or !Exists('$(_ItexoftLlvmNmPath)')" Text="LLVM llvm-nm tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="'$(_ItexoftLlvmObjcopyPath)' == '' or !Exists('$(_ItexoftLlvmObjcopyPath)')" Text="LLVM llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
+        <Error Condition="'$(_ItexoftWasmStripSymbols)' == 'true' and ('$(ObjCopyName)' == '' or !Exists('$(ObjCopyName)'))" Text="llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
+        <Error Condition="'$(_ItexoftRuntimeNativeDir)' == '' or !Exists('$(_ItexoftRuntimeNativeDir)')" Text="Runtime pack is missing. Install the wasm workload and runtime pack."/>
+        <Error Condition="'$(_ItexoftRuntimeLibManagedDir)' == '' or !Exists('$(_ItexoftRuntimeLibManagedDir)')" Text="Runtime managed library directory is missing."/>
+        <Error Condition="'$(_ItexoftEmscriptenToolsRoot)' == '' or !Exists('$(_ItexoftEmscriptenToolsRoot)')" Text="Emscripten workload pack is missing. Install the wasm workload."/>
+        <Error Condition="'$(_ItexoftEmscriptenNodeToolsRoot)' == '' or !Exists('$(_ItexoftEmscriptenNodeToolsRoot)')" Text="Emscripten node pack is missing. Install the wasm workload."/>
+        <Error Condition="'$(_ItexoftMonoAotCrossPath)' == '' or !Exists('$(_ItexoftMonoAotCrossPath)')" Text="Mono AOT cross compiler pack is missing. Install the wasm workload."/>
+        <Error Condition="'$(_ItexoftWasmOptPath)' == '' or !Exists('$(_ItexoftWasmOptPath)')" Text="wasm-opt tool is missing. Install the wasm workload."/>
+        <Error Condition="'$(_ItexoftEmccPath)' == '' or !Exists('$(_ItexoftEmccPath)')" Text="emcc tool is missing. Install the wasm workload."/>
+        <Exec Command="chmod +x &quot;$(_ItexoftLlvmErPath)&quot;"
+              Condition="!$([MSBuild]::IsOSPlatform('windows')) and '$(_ItexoftLlvmErPath)' != '' and Exists('$(_ItexoftLlvmErPath)')"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="Low"/>
+        <Exec Command="chmod +x &quot;$(_ItexoftIlnegToolPath)&quot;"
+              Condition="!$([MSBuild]::IsOSPlatform('windows')) and '$(_ItexoftIlnegToolPath)' != '' and Exists('$(_ItexoftIlnegToolPath)')"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="Low"/>
+    </Target>
+    <Target Name="ItexoftWasmBuild"
+            AfterTargets="Build"
+            Condition="'$(_IsPublishing)' != 'true'">
+        <CallTarget Targets="ItexoftWasmBuildCore"/>
+    </Target>
+    <Target Name="ItexoftWasmPublish"
+            AfterTargets="PrepareForPublish"
+            BeforeTargets="ComputeFilesToPublish"
+            Condition="'$(_IsPublishing)' == 'true'">
+        <CallTarget Targets="ItexoftWasmBuildCore"/>
+    </Target>
+    <Target Name="ItexoftFilterPublishOutputs"
+            AfterTargets="ComputeFilesToPublish"
+            BeforeTargets="CopyFilesToPublishDirectory"
+            Condition="'$(_IsPublishing)' == 'true'">
+        <ItemGroup>
+            <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"/>
+            <ResolvedFileToPublish Include="$(_ItexoftWasmOutputPath)">
+                <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+                <RelativePath>$(TargetName).wasm</RelativePath>
+                <IsKeyOutput>true</IsKeyOutput>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(_ItexoftWasmOutputPath).symbols" Condition="'$(_ItexoftWasmDebug)' == 'true' and Exists('$(_ItexoftWasmOutputPath).symbols')">
+                <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+                <RelativePath>$(TargetName).wasm.symbols</RelativePath>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
+    <Target Name="ItexoftWasmOutputGroup"
+            BeforeTargets="BuiltProjectOutputGroup"
+            Condition="'$(_ItexoftWasmOutputPath)' != '' and Exists('$(_ItexoftWasmOutputPath)')">
+        <ItemGroup>
+            <BuiltProjectOutputGroupKeyOutput Remove="@(BuiltProjectOutputGroupKeyOutput)"/>
+            <BuiltProjectOutputGroupKeyOutput Include="$(_ItexoftWasmOutputPath)">
+                <IsKeyOutput>true</IsKeyOutput>
+                <FinalOutputPath>$(_ItexoftWasmOutputPath)</FinalOutputPath>
+                <TargetPath>$(TargetName).wasm</TargetPath>
+            </BuiltProjectOutputGroupKeyOutput>
+        </ItemGroup>
+    </Target>
+    <Target Name="ItexoftWasmBuildCore"
+            DependsOnTargets="ItexoftResolveWasmToolchain;CoreCompile">
+        <MakeDir Directories="$(_ItexoftWasmIntermediateDir);$(_ItexoftEmscriptenCacheDir);$(_ItexoftWasmOutputDir);$(_ItexoftTrimIntermediateDir)"/>
+        <ItemGroup>
+            <_ItexoftAotAssembly Include="@(IntermediateAssembly)"/>
+        </ItemGroup>
+        <Error Condition="'$(DesignTimeBuild)' != 'true' and '@(_ItexoftAotAssembly)' == ''"
+               Text="No managed assemblies found for AOT. IntermediateAssembly item is empty (@(IntermediateAssembly))."/>
+        <PropertyGroup Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '@(_ItexoftAotAssembly)' != ''">
+            <_ItexoftTrimAssemblyCount>@(_ItexoftAotAssembly->Count())</_ItexoftTrimAssemblyCount>
+            <_ItexoftTrimAssembly>@(_ItexoftAotAssembly->'%(FullPath)')</_ItexoftTrimAssembly>
+            <_ItexoftTrimAssemblyName>$([System.IO.Path]::GetFileNameWithoutExtension('$(_ItexoftTrimAssembly)'))</_ItexoftTrimAssemblyName>
+        </PropertyGroup>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimAssemblyCount)' != '1'"
+               Text="Trim requires a single managed assembly input."/>
+        <Exec Command="&quot;$(_ItexoftIlnegToolPath)&quot; ilink &quot;$(_ItexoftTrimAssembly)&quot; &quot;$(_ItexoftTrimDescriptorPath)&quot;"
+              Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimAssembly)' != ''"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="High"/>
+        <ItemGroup Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimAssembly)' != ''">
+            <_ItexoftILLinkReference Include="@(ReferencePath)">
+                <AssemblyName>$([System.IO.Path]::GetFileNameWithoutExtension('%(Identity)'))</AssemblyName>
+            </_ItexoftILLinkReference>
+            <_ItexoftILLinkLine Include="-x &quot;$(_ItexoftTrimDescriptorPath)&quot;"/>
+            <_ItexoftILLinkLine Include="--trim-mode link"/>
+            <_ItexoftILLinkLine Include="--action link"/>
+            <_ItexoftILLinkLine Include="-reference &quot;$(_ItexoftTrimAssembly)&quot;"/>
+            <_ItexoftILLinkLine Include="--action link $(_ItexoftTrimAssemblyName)"/>
+            <_ItexoftILLinkLine Include="@(_ItexoftILLinkReference->'-reference &quot;%(Identity)&quot;')"/>
+            <_ItexoftILLinkLine Include="@(_ItexoftILLinkReference->'--action skip %(AssemblyName)')"/>
+            <_ItexoftILLinkLine Include="-out &quot;$(_ItexoftTrimIntermediateDirNoTrailing)&quot;"/>
+        </ItemGroup>
+        <WriteLinesToFile File="$(_ItexoftILLinkRspPath)" Lines="@(_ItexoftILLinkLine)" Overwrite="true"
+                          Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimAssembly)' != ''"/>
+        <Exec Command="&quot;$(_ItexoftDotNetExe)&quot; &quot;$(_ItexoftILLinkToolPath)&quot; @&quot;$(_ItexoftILLinkRspPath)&quot;"
+              Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimAssembly)' != ''"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="High"/>
+        <ItemGroup Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftTrimmedAssemblyPath)' != ''">
+            <_ItexoftAotAssembly Remove="@(_ItexoftAotAssembly)"/>
+            <_ItexoftAotAssembly Include="$(_ItexoftTrimmedAssemblyPath)"/>
+        </ItemGroup>
+        <ItemGroup Condition="'@(_ItexoftAotAssembly)' != ''">
+            <_ItexoftAotAssembly Update="@(_ItexoftAotAssembly)">
+                <ItexoftExportSymbolsFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).exportsymbols'))</ItexoftExportSymbolsFile>
+                <AotArguments>$(_ItexoftMonoAotArguments)</AotArguments>
+                <ProcessArguments>$(_ItexoftMonoAotProcessArguments)</ProcessArguments>
+            </_ItexoftAotAssembly>
+        </ItemGroup>
+        <ItemGroup>
+            <_ItexoftMonoPathItem Include="$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory), $(IntermediateOutputPath)))"/>
+            <_ItexoftMonoPathItem Include="@(_ItexoftAotAssembly->'$([System.IO.Path]::GetDirectoryName('%(FullPath)'))')"/>
+            <_ItexoftMonoPathItem Include="$(_ItexoftRuntimeNativeDir)"/>
+            <_ItexoftMonoPathItem Include="$(_ItexoftRuntimeLibManagedDir)"/>
+            <_ItexoftMonoPathItem Remove="@(_ItexoftMonoPathItem)" Condition="'%(Identity)' == '' or !Exists('%(Identity)')"/>
+        </ItemGroup>
+        <ItemGroup>
+            <_ItexoftEmscriptenConfigLine Include="EMSCRIPTEN_ROOT = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftEmscriptenRoot)'))'"/>
+            <_ItexoftEmscriptenConfigLine Include="LLVM_ROOT = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftLlvmRoot)'))'"/>
+            <_ItexoftEmscriptenConfigLine Include="LLVM_OBJCOPY = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftLlvmObjcopyPath)'))'"/>
+            <_ItexoftEmscriptenConfigLine Include="BINARYEN_ROOT = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftEmscriptenToolsRoot)'))'"/>
+            <_ItexoftEmscriptenConfigLine Include="NODE_JS = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftNodeJsPath)'))'"/>
+            <_ItexoftEmscriptenConfigLine Include="CACHE = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftEmscriptenCacheDir)'))'"/>
+        </ItemGroup>
+        <WriteLinesToFile File="$(_ItexoftEmscriptenConfigPath)" Lines="@(_ItexoftEmscriptenConfigLine)" Overwrite="true"/>
+        <MonoAOTCompiler Condition="'@(_ItexoftAotAssembly)' != ''"
+                         CompilerBinaryPath="$(_ItexoftMonoAotCrossPath)"
+                         Assemblies="@(_ItexoftAotAssembly)"
+                         AdditionalAssemblySearchPaths="@(_ItexoftMonoPathItem)"
+                         OutputDir="$(_ItexoftWasmIntermediateDir)"
+                         Mode="LLVMOnly"
+                         OutputType="AsmOnly"
+                         UseLLVM="true"
+                         UseStaticLinking="true"
+                         UseDirectIcalls="true"
+                         UseAotDataFile="false"
+                         EnableUnmanagedCallersOnlyMethodsExport="true"
+                         LLVMPath="$(_ItexoftLlvmToolsBinRoot)"
+                         UseDwarfDebug="$(_ItexoftWasmDebug)"
+                         IntermediateOutputPath="$(_ItexoftWasmIntermediateDir)">
+            <Output TaskParameter="CompiledAssemblies" ItemName="_ItexoftAotCompiledAssembly"/>
+        </MonoAOTCompiler>
+        <ItemGroup>
+            <_ItexoftExportSymbolsFile Include="@(_ItexoftAotAssembly->'%(ItexoftExportSymbolsFile)')"/>
+            <_ItexoftMissingExportSymbolsFile Include="@(_ItexoftExportSymbolsFile)" Condition="!Exists('%(Identity)')"/>
+        </ItemGroup>
+        <Error Condition="'@(_ItexoftMissingExportSymbolsFile)' != ''"
+               Text="Export symbols file not generated: @(_ItexoftMissingExportSymbolsFile)"/>
+        <ItemGroup>
+            <_ItexoftAotBitcode Include="@(_ItexoftAotCompiledAssembly->'%(LlvmBitcodeFile)')"/>
+        </ItemGroup>
+        <Error Condition="'@(_ItexoftAotCompiledAssembly)' != '' and '@(_ItexoftAotBitcode)' == ''"
+               Text="AOT compiler did not produce LLVM bitcode output."/>
+        <ReadLinesFromFile File="@(_ItexoftExportSymbolsFile)" Condition="'@(_ItexoftExportSymbolsFile)' != ''">
+            <Output TaskParameter="Lines" ItemName="_ItexoftManagedExportedSymbolRaw"/>
+        </ReadLinesFromFile>
+        <ItemGroup>
+            <_ItexoftManagedExportedSymbolRaw Remove="@(_ItexoftManagedExportedSymbolRaw)" Condition="'%(Identity)' == ''"/>
+        </ItemGroup>
+        <RemoveDuplicates Inputs="@(_ItexoftManagedExportedSymbolRaw)" Condition="'@(_ItexoftManagedExportedSymbolRaw)' != ''">
+            <Output TaskParameter="Filtered" ItemName="_ItexoftManagedExportedSymbol"/>
+        </RemoveDuplicates>
+        <Error Condition="'@(_ItexoftExportSymbolsFile)' != '' and '@(_ItexoftManagedExportedSymbol)' == ''"
+               Text="No UnmanagedCallersOnly exports found. This SDK builds an importable wasm module and requires at least one exported method."/>
+        <ItemGroup Condition="'@(_ItexoftAotBitcode)' != ''">
+            <_ItexoftAotBitcode Update="@(_ItexoftAotBitcode)">
+                <ItexoftNmSymbolsFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).nm.symbols'))</ItexoftNmSymbolsFile>
+                <ItexoftLlvmIrFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).ll'))</ItexoftLlvmIrFile>
+                <ItexoftLlvmRewrittenBitcodeFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).rewrite.bc'))</ItexoftLlvmRewrittenBitcodeFile>
+            </_ItexoftAotBitcode>
+        </ItemGroup>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmNmPath)&quot; --defined-only --format=just-symbols &quot;%(_ItexoftAotBitcode.Identity)&quot; &gt; &quot;%(_ItexoftAotBitcode.ItexoftNmSymbolsFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
+              StandardOutputImportance="Low"
+              StandardErrorImportance="High"/>
+        <ReadLinesFromFile File="@(_ItexoftAotBitcode->'%(ItexoftNmSymbolsFile)')" Condition="'@(_ItexoftAotBitcode)' != ''">
+            <Output TaskParameter="Lines" ItemName="_ItexoftExportedSymbolRaw"/>
+        </ReadLinesFromFile>
+        <ItemGroup>
+            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="'%(Identity)' == ''"/>
+            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="!$([System.String]::Copy('%(Identity)').Contains('wrapper_native_to_managed_'))"/>
+            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="$([System.String]::Copy('%(Identity)').StartsWith('info_'))"/>
+        </ItemGroup>
+        <RemoveDuplicates Inputs="@(_ItexoftExportedSymbolRaw)" Condition="'@(_ItexoftExportedSymbolRaw)' != ''">
+            <Output TaskParameter="Filtered" ItemName="_ItexoftExportedSymbol"/>
+        </RemoveDuplicates>
+        <Error Condition="'@(_ItexoftExportedSymbol)' == ''"
+               Text="No native export symbols were resolved from AOT output."/>
+        <PropertyGroup>
+            <_ItexoftExportedSymbolFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'itexoft-exported.symbols'))</_ItexoftExportedSymbolFile>
+        </PropertyGroup>
+        <WriteLinesToFile File="$(_ItexoftExportedSymbolFile)"
+                          Lines="@(_ItexoftExportedSymbol)"
+                          Overwrite="true"
+                          Condition="'@(_ItexoftExportedSymbol)' != ''"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmDisPath)&quot; -o &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot; &quot;%(_ItexoftAotBitcode.Identity)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmErPath)&quot; --exports &quot;$(_ItexoftExportedSymbolFile)&quot; --inplace &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != '' and '@(_ItexoftExportedSymbol)' != ''"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmAsPath)&quot; -o &quot;%(_ItexoftAotBitcode.ItexoftLlvmRewrittenBitcodeFile)&quot; &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <ItemGroup Condition="'@(_ItexoftAotBitcode)' != ''">
+            <_ItexoftAotObject Include="@(_ItexoftAotBitcode)">
+                <ObjectFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).o'))</ObjectFile>
+                <BitcodeFile>%(ItexoftLlvmRewrittenBitcodeFile)</BitcodeFile>
+            </_ItexoftAotObject>
+        </ItemGroup>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmLlcPath)&quot; $(_ItexoftLlcOpt) $(_ItexoftLlcMattr) -relocation-model=pic -filetype=obj -o &quot;%(_ItexoftAotObject.ObjectFile)&quot; &quot;%(_ItexoftAotObject.BitcodeFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <ItemGroup>
+            <_ItexoftEmccLinkLine Include="--emit-symbol-map" Condition="'$(_ItexoftWasmDebug)' == 'true'"/>
+            <_ItexoftEmccLinkLine Include="$(_ItexoftEmccLinkFlags)" Condition="'$(_ItexoftEmccLinkFlags)' != ''"/>
+            <_ItexoftEmccLinkLine Include="@(_ItexoftExportedSymbol->'-Wl,--export-if-defined=%(Identity)')"/>
+            <_ItexoftEmccLinkLine Include="-o &quot;$(_ItexoftWasmIntermediateOutputPath)&quot;"/>
+            <_ItexoftEmccLinkLine Include="@(_ItexoftAotObject->'&quot;%(ObjectFile)&quot;')"/>
+        </ItemGroup>
+        <WriteLinesToFile File="$(_ItexoftEmccLinkRsp)" Lines="@(_ItexoftEmccLinkLine)" Overwrite="true"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftEmccPath)&quot; $(_ItexoftEmccCommonFlags) @&quot;$(_ItexoftEmccLinkRsp)&quot;$(_ItexoftEmccCommandSuffix)"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Delete Files="$(_ItexoftWasmIntermediateOutputTempPath)" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftWasmOptPath)&quot; $(_ItexoftWasmOptFlags) &quot;$(_ItexoftWasmIntermediateOutputPath)&quot; -o &quot;$(_ItexoftWasmIntermediateOutputTempPath)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'$(_ItexoftRunWasmOpt)' == 'true'"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Move SourceFiles="$(_ItexoftWasmIntermediateOutputTempPath)" DestinationFiles="$(_ItexoftWasmIntermediateOutputPath)" OverwriteReadOnlyFiles="true" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
+        <Exec Command="&quot;$(ObjCopyName)&quot; -w --remove-section=.debug* --remove-section=name --remove-section=producers &quot;$(_ItexoftWasmIntermediateOutputPath)&quot; &quot;$(_ItexoftWasmIntermediateOutputTempPath)&quot;"
+              Condition="'$(_ItexoftWasmStripSymbols)' == 'true' and Exists('$(_ItexoftWasmIntermediateOutputPath)')"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Move SourceFiles="$(_ItexoftWasmIntermediateOutputTempPath)" DestinationFiles="$(_ItexoftWasmIntermediateOutputPath)" OverwriteReadOnlyFiles="true" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
+        <Copy SourceFiles="$(_ItexoftWasmIntermediateOutputPath)" DestinationFiles="$(_ItexoftWasmOutputPath)"
+              OverwriteReadOnlyFiles="true"
+              Condition="Exists('$(_ItexoftWasmIntermediateOutputPath)') and '$(_ItexoftWasmIntermediateOutputPath)' != '$(_ItexoftWasmOutputPath)'"/>
+        <Copy SourceFiles="$(_ItexoftWasmIntermediateOutputPath).symbols" DestinationFiles="$(_ItexoftWasmOutputPath).symbols"
+              OverwriteReadOnlyFiles="true"
+              Condition="'$(_ItexoftWasmDebug)' == 'true' and Exists('$(_ItexoftWasmIntermediateOutputPath).symbols') and '$(_ItexoftWasmIntermediateOutputPath).symbols' != '$(_ItexoftWasmOutputPath).symbols'"/>
+        <Delete Files="$(_ItexoftWasmIntermediateOutputTempPath)" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
+        <ItemGroup>
+            <FileWrites Include="$(_ItexoftWasmIntermediateOutputPath)"/>
+            <FileWrites Include="$(_ItexoftWasmOutputPath)"/>
+        </ItemGroup>
+    </Target>
+</Project>

@@ -1,0 +1,45 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+
+<Project>
+    <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk"/>
+    <Import Project="Global.props" Condition="Exists('Global.props')"/>
+    <Import Project="..\..\Global.props" Condition="!Exists('Global.props') and Exists('..\..\Global.props')"/>
+
+    <ItemGroup>
+        <PackageReference Include="llvm.wasm-tools.$(SystemRuntimeIdentifier)" Version="19.*" PrivateAssets="all" GeneratePathProperty="true"/>
+        <PackageReference Include="llvm.er" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
+        <PackageReference Include="ilneg" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
+        <PackageReference Include="llvm.objcopy" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
+        <PackageReference Include="nuxmux" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
+    </ItemGroup>
+    
+    <PropertyGroup>
+        <!--<WasmEmCacheDir></WasmEmCacheDir>-->
+        <!--<WasmThreadPoolSize></WasmThreadPoolSize>-->
+        <!--<WasmEnableVerbose></WasmEnableVerbose>-->
+        <WasmExceptionHandlingMode Condition="'$(WasmExceptionHandlingMode)' == ''">wasm</WasmExceptionHandlingMode>
+        <WasmEnableSIMD Condition="'$(WasmEnableSIMD)' == ''">true</WasmEnableSIMD>
+        <WasmEnableThreads Condition="'$(WasmEnableThreads)' == ''">true</WasmEnableThreads>
+        <WasmEnableSignExt Condition="'$(WasmEnableSignExt)' == ''">true</WasmEnableSignExt>
+        <WasmEnableMutableGlobals Condition="'$(WasmEnableMutableGlobals)' == ''">true</WasmEnableMutableGlobals>
+        <WasmEnableBulkMemory Condition="'$(WasmEnableBulkMemory)' == ''">true</WasmEnableBulkMemory>
+        <WasmEnableNontrappingFloatToInt Condition="'$(WasmEnableNontrappingFloatToInt)' == ''">true</WasmEnableNontrappingFloatToInt>
+        <WasmEnableReferenceTypes Condition="'$(WasmEnableReferenceTypes)' == ''">true</WasmEnableReferenceTypes>
+        <WasmEnableMultivalue Condition="'$(WasmEnableMultivalue)' == ''">true</WasmEnableMultivalue>
+        <WasmEnableExtendedConst Condition="'$(WasmEnableExtendedConst)' == ''">true</WasmEnableExtendedConst>
+        <WasmEnableTailCall Condition="'$(WasmEnableTailCall)' == ''">true</WasmEnableTailCall>
+        <WasmEnableGC Condition="'$(WasmEnableGC)' == ''">true</WasmEnableGC>
+    </PropertyGroup>
+    
+    <PropertyGroup>
+        <_ItexoftWasmRid>browser-wasm</_ItexoftWasmRid>
+        <_ItexoftPathSeparator Condition="$([MSBuild]::IsOSPlatform('windows'))">;</_ItexoftPathSeparator>
+        <_ItexoftPathSeparator Condition="!$([MSBuild]::IsOSPlatform('windows'))">:</_ItexoftPathSeparator>
+        <_ItexoftExeExt Condition="$([MSBuild]::IsOSPlatform('windows'))">.exe</_ItexoftExeExt>
+        <_ItexoftExeExt Condition="'$(_ItexoftExeExt)' == ''"></_ItexoftExeExt>
+        <ObjCopyName>$([MSBuild]::NormalizePath($(Pkgllvm_objcopy), 'runtimes', '$(SystemRuntimeIdentifier)', 'native', 'bin', 'llvm-objcopy$(_ItexoftExeExt)'))</ObjCopyName>
+    </PropertyGroup>
+</Project>

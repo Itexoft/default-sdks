@@ -1,0 +1,38 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+
+<Project>
+    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+    
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)' and '$(PublishAot)' == 'true' and '$(_IsPublishing)' == 'true'" >
+        <_ItexoftWasmPublishAot>true</_ItexoftWasmPublishAot>
+        <TargetArchitecture>wasm</TargetArchitecture>
+        <TargetOS>browser</TargetOS>
+        <UseMonoRuntime>true</UseMonoRuntime>
+        <CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>
+        <CopyOutputSymbolsToOutputDirectory Condition="'$(CopyOutputSymbolsToOutputDirectory)' == '' and '$(DebugSymbols)' == 'true'">true</CopyOutputSymbolsToOutputDirectory>
+        <CopyOutputSymbolsToOutputDirectory Condition="'$(CopyOutputSymbolsToOutputDirectory)' == '' and '$(DebugSymbols)' != 'true'">false</CopyOutputSymbolsToOutputDirectory>
+        <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+        <GenerateRuntimeConfigDevFile>false</GenerateRuntimeConfigDevFile>
+        <GenerateDependencyFile>false</GenerateDependencyFile>
+    </PropertyGroup>
+    
+    <Import Project="Wasm.targets" Condition="'$(_ItexoftWasmPublishAot)' == 'true'" />
+
+    <Target Name="_ItexoftProcessFrameworkReferencesBefore" BeforeTargets="ProcessFrameworkReferences">
+        <PropertyGroup Condition="'$(_ItexoftWasmPublishAot)' == 'true'" >
+            <PublishAot>false</PublishAot>
+            <_ItexoftRunILLink>$(RunILLink)</_ItexoftRunILLink>
+            <RunILLink>false</RunILLink>
+        </PropertyGroup>
+    </Target>
+    
+    <Target Name="_ItexoftProcessFrameworkReferencesAfter" AfterTargets="ProcessFrameworkReferences">
+        <PropertyGroup Condition="'$(_ItexoftWasmPublishAot)' == 'true'" >
+            <PublishAot>true</PublishAot>
+            <RunILLink>$(_ItexoftRunILLink)</RunILLink>
+        </PropertyGroup>
+    </Target>
+</Project>
