@@ -1,0 +1,31 @@
+<Project>
+    <PropertyGroup>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <GenerateDependencyFile>false</GenerateDependencyFile>
+        <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+        <PackageType>MSBuildSdk</PackageType>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <SkipCompilerExecution>true</SkipCompilerExecution>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        <PackageProjectUrl>https://github.com/Itexoft/default-sdks</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Itexoft/default-sdks</RepositoryUrl>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <LangVersion>latest</LangVersion>
+        <PackageLicenseExpression>MPL-2.0-no-copyleft-exception</PackageLicenseExpression>
+        <RepositoryType>git</RepositoryType>
+        <Authors>Denis Kudelin</Authors>
+        <Company>Itexoft</Company>
+        <Copyright>$(Authors)</Copyright>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>icon.png</PackageIcon>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include=".\README.md" Pack="true" PackagePath="" Link="README.md"/>
+        <None Include="..\..\LICENSE.md" Pack="true" PackagePath="" Link="LICENSE.md"/>
+        <None Include="..\..\NOTICE.md" Pack="true" PackagePath="" Link="NOTICE.md"/>
+        <None Include="..\..\DONATE.md" Pack="true" PackagePath="" Link="DONATE.md"/>
+        <None Include="icon.png" Pack="true" PackagePath=""/>
+    </ItemGroup>
+
+</Project>

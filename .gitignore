@@ -87,3 +87,4 @@ releases/
 build/
 mono/
 node_modules
+src/*/Sdk/Global.*

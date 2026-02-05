@@ -1,0 +1,44 @@
+<Project>
+    <PropertyGroup Condition="'$(ItexoftWasmEnableReferenceResolve)' == '' and ($([System.String]::Copy('$(TargetFramework)').Contains('-browser')) or ('$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)'))">
+        <ItexoftWasmEnableReferenceResolve>true</ItexoftWasmEnableReferenceResolve>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(ItexoftWasmEnableReferenceResolve)' == 'true'">
+        <WasmResolveAssembliesBeforeBuild Condition="'$(WasmResolveAssembliesBeforeBuild)' == ''">true</WasmResolveAssembliesBeforeBuild>
+        <PrepareInputsForWasmBuildDependsOn>
+            $(PrepareInputsForWasmBuildDependsOn);
+            _WasmResolveReferences
+        </PrepareInputsForWasmBuildDependsOn>
+    </PropertyGroup>
+
+    <Target Name="_ItexoftPopulateWasmAssemblySearchPaths"
+            AfterTargets="_GetDefaultWasmAssembliesToBundle"
+            BeforeTargets="_WasmResolveReferences"
+            DependsOnTargets="ResolveReferences"
+            Condition="'$(ItexoftWasmEnableReferenceResolve)' == 'true'">
+        <ItemGroup>
+            <_ItexoftWasmAssemblySearchPath Include="@(ReferencePath->'%(RootDir)%(Directory)')"/>
+            <_ItexoftWasmAssemblySearchPath Include="@(ReferenceCopyLocalPaths->'%(RootDir)%(Directory)')"/>
+            <_ItexoftWasmAssemblySearchPath Include="@(WasmAssembliesToBundle->'%(RootDir)%(Directory)')"/>
+            <_ItexoftWasmAssemblySearchPath Include="$(MicrosoftNetCoreAppRuntimePackRidLibTfmDir)" Condition="Exists('$(MicrosoftNetCoreAppRuntimePackRidLibTfmDir)')"/>
+
+            <WasmAssemblySearchPaths Include="@(_ItexoftWasmAssemblySearchPath)"/>
+        </ItemGroup>
+    </Target>
+
+    <Target Name="_ItexoftAddInteropReferenceAssembly"
+            BeforeTargets="_GenerateManagedToNative"
+            DependsOnTargets="ResolveReferences"
+            Condition="'$(ItexoftWasmEnableReferenceResolve)' == 'true'">
+        <ItemGroup>
+            <_ItexoftInteropReferenceAssembly Include="@(ReferencePath)"
+                                              Condition="'%(ReferencePath.Filename)' == 'System.Runtime.InteropServices'"/>
+            <_ItexoftRuntimeReferenceAssembly Include="@(ReferencePath)"
+                                              Condition="'%(ReferencePath.Filename)' == 'System.Runtime'"/>
+            <_WasmAssembliesInternal Include="@(_ItexoftInteropReferenceAssembly)"
+                                     Condition="'@(_ItexoftInteropReferenceAssembly)' != '' and '@(_WasmAssembliesInternal->AnyHaveMetadataValue(`FileName`, `System.Runtime.InteropServices`))' != 'true'"/>
+            <_WasmAssembliesInternal Include="@(_ItexoftRuntimeReferenceAssembly)"
+                                     Condition="'@(_ItexoftRuntimeReferenceAssembly)' != '' and '@(_WasmAssembliesInternal->AnyHaveMetadataValue(`FileName`, `System.Runtime`))' != 'true'"/>
+        </ItemGroup>
+    </Target>
+</Project>

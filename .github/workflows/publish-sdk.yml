@@ -1,0 +1,84 @@
+name: Publish SDK (reusable)
+on:
+  workflow_call:
+    inputs:
+      sdk-name:
+        description: SDK display name (for concurrency grouping)
+        required: true
+        type: string
+      artifact-name:
+        description: Artifact name from CI
+        required: true
+        type: string
+      branch:
+        description: Branch to publish from
+        required: false
+        default: master
+        type: string
+      tag-prefix:
+        description: Release tag prefix
+        required: false
+        default: v
+        type: string
+      generate-notes:
+        description: Generate release notes
+        required: false
+        default: false
+        type: boolean
+      allow-version-mismatch:
+        description: Allow version mismatch during publish
+        required: false
+        default: false
+        type: boolean
+      nuget-source:
+        description: NuGet source url
+        required: false
+        default: https://api.nuget.org/v3/index.json
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+  packages: write
+
+concurrency:
+  group: publish-${{ github.repository }}-${{ inputs.sdk-name }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  release:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-release.yml@master
+    with:
+      branch: ${{ inputs.branch }}
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: ${{ inputs.artifact-name }}
+      tag-prefix: ${{ inputs.tag-prefix }}
+      generate-notes: ${{ inputs.generate-notes }}
+      allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
+    secrets: inherit
+
+  package:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-package.yml@master
+    with:
+      branch: ${{ inputs.branch }}
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: ${{ inputs.artifact-name }}
+      allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
+    secrets: inherit
+
+  nuget:
+    needs: ci
+    uses: Itexoft/devops/.github/workflows/publish-nuget.yml@master
+    with:
+      branch: ${{ inputs.branch }}
+      run-id: ${{ needs.ci.outputs.run-id }}
+      artifact-name: ${{ inputs.artifact-name }}
+      source: ${{ inputs.nuget-source }}
+      allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
+    secrets: inherit
