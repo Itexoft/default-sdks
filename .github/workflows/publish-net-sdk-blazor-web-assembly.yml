@@ -1,0 +1,11 @@
+name: Publish NET.Sdk.BlazorWebAssembly
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-sdk.yml
+    with:
+      sdk-name: NET.Sdk.BlazorWebAssembly
+      artifact-name: net-sdk-blazor-webassembly
+    secrets: inherit

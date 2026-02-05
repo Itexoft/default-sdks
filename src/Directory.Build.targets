@@ -1,0 +1,34 @@
+<Project>
+    <PropertyGroup>
+        <WasmEnableWebcil>false</WasmEnableWebcil>
+        <DisableWasmBrowserBuild>true</DisableWasmBrowserBuild>
+        <BuildDependsOn></BuildDependsOn>
+        <RebuildDependsOn></RebuildDependsOn>
+        <CleanDependsOn></CleanDependsOn>
+        <PublishDependsOn></PublishDependsOn>
+        <PackDependsOn></PackDependsOn>
+        <CompileDependsOn></CompileDependsOn>
+        <CoreCompileDependsOn></CoreCompileDependsOn>
+        <GetCurrentProjectStaticWebAssetsDependsOn></GetCurrentProjectStaticWebAssetsDependsOn>
+        <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="Sdk\**\*" Pack="true" PackagePath="%(RecursiveDir)%(Filename)%(Extension)" Visible="true"/>
+        <None Include="Sdk\Global.*" Pack="true" PackagePath="Sdk\" Visible="false"/>
+        <None Remove="**/.DS_Store" />
+    </ItemGroup>
+
+    <Target Name="_CopyGlobalSdkFiles" BeforeTargets="Build;Rebuild;Clean;Pack;Publish;Restore">
+        <ItemGroup>
+            <_ItexoftGlobalSdkFiles Include="$(MSBuildThisFileDirectory)/Global.props"/>
+            <_ItexoftGlobalSdkFiles Include="$(MSBuildThisFileDirectory)/Global.targets"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(_ItexoftGlobalSdkFiles)"
+              DestinationFolder="$(MSBuildProjectDirectory)/Sdk"
+              SkipUnchangedFiles="true"/>
+    </Target>
+
+    <Target Name="_InitializeCommonProperties"></Target>
+    <Target Name="_ReadWasmProps"></Target>
+    <Target Name="PrepareInputsForWasmBuild"></Target>
+</Project>

@@ -1,0 +1,9 @@
+<Project>
+    <Target Name="_ItexoftForceInterpretWhenPublishAotDisabled" AfterTargets="_GetDefaultWasmAssembliesToBundle"
+            Condition="'$(PublishAot)' != 'true'">
+        <ItemGroup>
+            <_AOT_InternalForceInterpretAssemblies Include="@(WasmAssembliesToBundle)"
+                                                   Condition="'%(WasmAssembliesToBundle.Extension)' == '.dll'"/>
+        </ItemGroup>
+    </Target>
+</Project>

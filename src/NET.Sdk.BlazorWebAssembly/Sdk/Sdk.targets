@@ -1,0 +1,17 @@
+<!-- Copyright (c) 2011-2026 Denis Kudelin
+this Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
+
+<Project>
+    <Import Project="Global.targets"/>
+
+    <ItemGroup>
+        <PackageReference Include="Itexoft.dotnet.runtime.wasm" Version="$([MSBuild]::GetTargetFrameworkVersion('$(TargetFrameworkVersion)', 2)).*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+    </ItemGroup>
+
+    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.BlazorWebAssembly"/>
+    <Import Project="Wasm.targets" Condition="$([System.String]::Copy('$(TargetFramework)').Contains('-browser'))"/>
+    <Import Project="ItexoftPInvokeInteropScanFix.targets"/>
+    <Import Project="NativeAot.targets"/>
+</Project>

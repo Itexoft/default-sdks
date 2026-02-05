@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+    <PropertyGroup>
+        <TargetFramework>net10.0-browser</TargetFramework>
+        <PackageId>Itexoft.NET.Sdk.BlazorWebAssembly</PackageId>
+        <PackageTags>msbuild;dotnet;sdk;blazor;webassembly;wasm;browser-wasm;itexoft</PackageTags>
+        <Description>Blazor WebAssembly SDK wrapper.</Description>
+    </PropertyGroup>
+    
+</Project>

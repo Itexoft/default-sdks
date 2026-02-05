@@ -5,12 +5,23 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
 
 <Project>
     <PropertyGroup>
-        <_RuntimeIdentifierPlatform Condition="'$(_RuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsWindows())">win</_RuntimeIdentifierPlatform>
-        <_RuntimeIdentifierPlatform Condition="'$(_RuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsMacOS())">osx</_RuntimeIdentifierPlatform>
-        <_RuntimeIdentifierPlatform Condition="'$(_RuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsLinux())">linux</_RuntimeIdentifierPlatform>
-        <_RuntimeIdentifierPlatform Condition="'$(_RuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == ''">unknown</_RuntimeIdentifierPlatform>
+        <_RuntimeIdentifierPlatform Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsWindows())">win</_RuntimeIdentifierPlatform>
+        <_RuntimeIdentifierPlatform Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsMacOS())">osx</_RuntimeIdentifierPlatform>
+        <_RuntimeIdentifierPlatform Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == '' and $([System.OperatingSystem]::IsLinux())">linux</_RuntimeIdentifierPlatform>
+        <_RuntimeIdentifierPlatform Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == ''">unknown</_RuntimeIdentifierPlatform>
+        <_RuntimeIdentifierArch Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierArch)' == ''">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</_RuntimeIdentifierArch>
+        <SystemRuntimeIdentifier Condition="'$(SystemRuntimeIdentifier)' == ''">$(_RuntimeIdentifierPlatform)-$(_RuntimeIdentifierArch)</SystemRuntimeIdentifier>
+        <_ItexoftWasmRid>browser-wasm</_ItexoftWasmRid>
+        <_ItexoftMachineName>$([System.Environment]::MachineName)</_ItexoftMachineName>
+    </PropertyGroup>
 
-        <_RuntimeIdentifierArch Condition="'$(_RuntimeIdentifier)' == '' and '$(_RuntimeIdentifierArch)' == ''">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</_RuntimeIdentifierArch>
-        <SystemRuntimeIdentifier>$(_RuntimeIdentifierPlatform)-$(_RuntimeIdentifierArch)</SystemRuntimeIdentifier>
+    <PropertyGroup>
+        <MSBuildProjectExtensionsPath>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', 'obj', '$(MSBuildProjectName)-$(SystemRuntimeIdentifier)-$(_ItexoftMachineName)'))$([System.IO.Path]::DirectorySeparatorChar)</MSBuildProjectExtensionsPath>
+        <BaseIntermediateOutputPath>$(MSBuildProjectExtensionsPath)</BaseIntermediateOutputPath>
+        <RestoreOutputPath>$(MSBuildProjectExtensionsPath)</RestoreOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <DefaultItemExcludes>$(DefaultItemExcludes);$(BaseOutputPath);$(BaseIntermediateOutputPath)</DefaultItemExcludes>
+        <DefaultExcludesInProjectFolder>$(DefaultExcludesInProjectFolder);$(BaseOutputPath);$(BaseIntermediateOutputPath)</DefaultExcludesInProjectFolder>
     </PropertyGroup>
 </Project>
