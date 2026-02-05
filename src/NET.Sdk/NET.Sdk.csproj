@@ -1,39 +1,7 @@
 <Project Sdk="Microsoft.Build.NoTargets/3.7.134">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <PackageId>Itexoft.NET.Sdk</PackageId>
-        <PackageType>MSBuildSdk</PackageType>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <IncludeBuildOutput>false</IncludeBuildOutput>
-        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-        <PackageProjectUrl>https://github.com/Itexoft/default-sdks</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Itexoft/default-sdks</RepositoryUrl>
-        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <LangVersion>latest</LangVersion>
-        <PackageLicenseExpression>MPL-2.0-no-copyleft-exception</PackageLicenseExpression>
-        <RepositoryType>git</RepositoryType>
-        <Authors>Denis Kudelin</Authors>
-        <Company>Itexoft</Company>
-        <Copyright>$(Authors)</Copyright>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageIcon>icon.png</PackageIcon>
         <PackageTags>sdk;wasm;webassembly;nativeaot;mono;aot;browser-wasm;itexoft</PackageTags>
         <Description>Wrapper over Microsoft.NET.Sdk from Itexoft</Description>
     </PropertyGroup>
-
-    <ItemGroup>
-        <None Include="Sdk\Sdk.props" Pack="true" PackagePath="Sdk\"/>
-        <None Include="Sdk\Sdk.targets" Pack="true" PackagePath="Sdk\"/>
-        <None Include="Sdk\Wasm.targets" Pack="true" PackagePath="Sdk\"/>
-        <None Include="..\Global.props" Pack="true" PackagePath="Sdk\">
-            <Link>Sdk\Global.props</Link>
-        </None>
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Include=".\README.md" Pack="true" PackagePath="" Link="README.md"/>
-        <None Include="..\..\LICENSE.md" Pack="true" PackagePath="" Link="LICENSE.md"/>
-        <None Include="..\..\NOTICE.md" Pack="true" PackagePath="" Link="NOTICE.md"/>
-        <None Include="..\..\DONATE.md" Pack="true" PackagePath="" Link="DONATE.md"/>
-    </ItemGroup>
 </Project>

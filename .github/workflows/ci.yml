@@ -1,0 +1,57 @@
+name: CI .NET SDK
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      run-id:
+        description: ci run id
+        value: ${{ github.run_id }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk:
+          - id: net-sdk
+            project: src/NET.Sdk/NET.Sdk.csproj
+          - id: net-sdk-blazor-webassembly
+            project: src/NET.Sdk.BlazorWebAssembly/NET.Sdk.BlazorWebAssembly.csproj
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack ${{ matrix.sdk.id }}
+        run: |
+          set -euo pipefail
+          OUT_DIR="$GITHUB_WORKSPACE/nuget/${{ matrix.sdk.id }}" ./pack.sh --project "${{ matrix.sdk.project }}"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.sdk.id }}
+          path: ${{ github.workspace }}/nuget/${{ matrix.sdk.id }}/*.nupkg
+          if-no-files-found: error
+          retention-days: 1

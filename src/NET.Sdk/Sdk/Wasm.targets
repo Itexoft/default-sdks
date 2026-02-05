@@ -117,6 +117,7 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Speed'">$(_ItexoftEmccOpt) -O3</_ItexoftEmccOpt>
         <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == ''">$(_ItexoftEmccOpt) -O2</_ItexoftEmccOpt>
         <_ItexoftEmccCommonFlags>$(_ItexoftEmccOpt)</_ItexoftEmccCommonFlags>
+        <_ItexoftEmccCommonFlags>$(_ItexoftEmccCommonFlags) -fPIC</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(_ItexoftWasmDebug)' == 'true'">$(_ItexoftEmccCommonFlags) -g -s EMIT_PRODUCERS_SECTION=1</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftEmccCommonFlags) -msimd128</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">$(_ItexoftEmccCommonFlags) -fwasm-exceptions</_ItexoftEmccCommonFlags>

@@ -4,18 +4,17 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
 
 <Project>
+    <Import Project="Global.props"/>
     <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk"/>
-    <Import Project="Global.props" Condition="Exists('Global.props')"/>
-    <Import Project="..\..\Global.props" Condition="!Exists('Global.props') and Exists('..\..\Global.props')"/>
-
-    <ItemGroup>
-        <PackageReference Include="llvm.wasm-tools.$(SystemRuntimeIdentifier)" Version="19.*" PrivateAssets="all" GeneratePathProperty="true"/>
-        <PackageReference Include="llvm.er" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
-        <PackageReference Include="ilneg" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
-        <PackageReference Include="llvm.objcopy" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
-        <PackageReference Include="nuxmux" Version="*" PrivateAssets="all" GeneratePathProperty="true"/>
-    </ItemGroup>
     
+    <ItemGroup>
+        <PackageReference Include="llvm.wasm-tools.$(SystemRuntimeIdentifier)" Version="19.*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="llvm.er" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="ilneg" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="llvm.objcopy" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="nuxmux" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+    </ItemGroup>
+
     <PropertyGroup>
         <!--<WasmEmCacheDir></WasmEmCacheDir>-->
         <!--<WasmThreadPoolSize></WasmThreadPoolSize>-->
@@ -33,9 +32,8 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <WasmEnableTailCall Condition="'$(WasmEnableTailCall)' == ''">true</WasmEnableTailCall>
         <WasmEnableGC Condition="'$(WasmEnableGC)' == ''">true</WasmEnableGC>
     </PropertyGroup>
-    
+
     <PropertyGroup>
-        <_ItexoftWasmRid>browser-wasm</_ItexoftWasmRid>
         <_ItexoftPathSeparator Condition="$([MSBuild]::IsOSPlatform('windows'))">;</_ItexoftPathSeparator>
         <_ItexoftPathSeparator Condition="!$([MSBuild]::IsOSPlatform('windows'))">:</_ItexoftPathSeparator>
         <_ItexoftExeExt Condition="$([MSBuild]::IsOSPlatform('windows'))">.exe</_ItexoftExeExt>

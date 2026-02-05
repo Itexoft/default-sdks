@@ -1,0 +1,6 @@
+<Project>
+    <PropertyGroup>
+        <DefineConstants Condition="'$(PublishAot)' == true">NativeAOT</DefineConstants>
+        <DefineConstants Condition="'$(UsingMicrosoftNETSdkBlazorWebAssembly)' == 'true'">BlazorWebAssembly</DefineConstants>
+    </PropertyGroup>
+</Project>
