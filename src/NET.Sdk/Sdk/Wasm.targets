@@ -4,10 +4,8 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public License, v. 2.0. -->
 <Project>
     <PropertyGroup>
-        <_ItexoftNetMajor Condition="'$(TargetFramework)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(TargetFramework)', '\d+').Value)</_ItexoftNetMajor>
-        <_ItexoftExeExt Condition="$([MSBuild]::IsOSPlatform('windows'))">.exe</_ItexoftExeExt>
-        <_ItexoftExeExt Condition="'$(_ItexoftExeExt)' == ''"></_ItexoftExeExt>
-        <_ItexoftDotNetExe>dotnet</_ItexoftDotNetExe>
+        <_ItexoftDotNetExe Condition="'$(_ItexoftDotNetExe)' == '' and '$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</_ItexoftDotNetExe>
+        <_ItexoftDotNetExe Condition="'$(_ItexoftDotNetExe)' == '' and '$(NetCoreRoot)' != ''">$([MSBuild]::NormalizePath('$(NetCoreRoot)', 'dotnet$(_ItexoftExeExt)'))</_ItexoftDotNetExe>
         <_ItexoftStandardOutputImportance Condition="'$(WasmEnableVerbose)' == 'true'">High</_ItexoftStandardOutputImportance>
         <_ItexoftStandardOutputImportance Condition="'$(WasmEnableVerbose)' != 'true'">Low</_ItexoftStandardOutputImportance>
     </PropertyGroup>
@@ -31,27 +29,23 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
     <PropertyGroup>
         <_ItexoftPacks Condition="'$(NetCoreRoot)' != ''">$([MSBuild]::EnsureTrailingSlash($([MSBuild]::NormalizeDirectory($(NetCoreRoot), 'packs'))))</_ItexoftPacks>
         <_ItexoftRuntimePackVersion>$(_RuntimePackInWorkloadVersionCurrent)</_ItexoftRuntimePackVersion>
-        <_ItexoftMonoAotCompilerTaskRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.MonoAOTCompiler.Task', '$(_ItexoftRuntimePackVersion)'))</_ItexoftMonoAotCompilerTaskRuntimePack>
-        <_ItexoftMonoTargetsSdkRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.MonoTargets.Sdk', '$(_ItexoftRuntimePackVersion)'))</_ItexoftMonoTargetsSdkRuntimePack>
-        <_ItexoftWebAssemblySdkRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.WebAssembly.Sdk', '$(_ItexoftRuntimePackVersion)'))</_ItexoftWebAssemblySdkRuntimePack>
-        <_ItexoftNetCoreAppRuntimeAotCrossRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.AOT.$(SystemRuntimeIdentifier).Cross.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeAotCrossRuntimePack>
-        <_ItexoftNetCoreAppRuntimeMonoRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoRuntimePack>
-        <_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.multithread.browser-wasm', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>
-        <_ItexoftEmscriptenCachePackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Cache.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenCachePackRoot>
-        <_ItexoftEmscriptenCacheRuntimePack Condition="'$(_ItexoftEmscriptenCachePackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenCachePackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenCacheRuntimePack>
-        <_ItexoftEmscriptenNodePackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Node.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenNodePackRoot>
-        <_ItexoftEmscriptenNodeRuntimePack Condition="'$(_ItexoftEmscriptenNodePackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenNodePackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenNodeRuntimePack>
-        <_ItexoftEmscriptenSdkPackRoot>$([System.IO.Directory]::GetDirectories('$(_ItexoftPacks)', 'Microsoft.NET.Runtime.Emscripten.*.Sdk.$(SystemRuntimeIdentifier)'))</_ItexoftEmscriptenSdkPackRoot>
-        <_ItexoftEmscriptenSdkRuntimePack Condition="'$(_ItexoftEmscriptenSdkPackRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftEmscriptenSdkPackRoot)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftEmscriptenSdkRuntimePack>
+        <_ItexoftNetCoreAppRuntimeMonoRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.$(BrowserWasmRuntimeIdentifier)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoRuntimePack>
+        <_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>$([MSBuild]::NormalizeDirectory('$(_ItexoftPacks)', 'Microsoft.NETCore.App.Runtime.Mono.multithread.$(BrowserWasmRuntimeIdentifier)', '$(_ItexoftRuntimePackVersion)'))</_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack>
+    </PropertyGroup>
+    <PropertyGroup>
+        <_ItexoftRuntimeWasmThreadMode Condition="'$(WasmEnableThreads)' == 'true'">multithread</_ItexoftRuntimeWasmThreadMode>
+        <_ItexoftRuntimeWasmThreadMode Condition="'$(WasmEnableThreads)' == 'false'">singlethread</_ItexoftRuntimeWasmThreadMode>
     </PropertyGroup>
     <PropertyGroup>
         <_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftNetCoreAppRuntimeMonoMultithreadRuntimePack)</_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack>
-        <_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack Condition="'$(WasmEnableThreads)' != 'true'">$(_ItexoftNetCoreAppRuntimeMonoRuntimePack)</_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack>
+        <_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack Condition="'$(WasmEnableThreads)' == 'false'">$(_ItexoftNetCoreAppRuntimeMonoRuntimePack)</_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack>
         <_ItexoftWasmIntermediateRoot>$([MSBuild]::NormalizeDirectory($(IntermediateOutputPath), 'wasm'))</_ItexoftWasmIntermediateRoot>
         <_ItexoftWasmIntermediateDir Condition="'$(_IsPublishing)' == 'true'">$([MSBuild]::NormalizeDirectory($(_ItexoftWasmIntermediateRoot), 'publish'))</_ItexoftWasmIntermediateDir>
         <_ItexoftWasmIntermediateDir Condition="'$(_IsPublishing)' != 'true'">$([MSBuild]::NormalizeDirectory($(_ItexoftWasmIntermediateRoot), 'build'))</_ItexoftWasmIntermediateDir>
-        <_ItexoftEmscriptenCacheDir Condition="'$(WasmEmCacheDir)' != ''">$([MSBuild]::NormalizeDirectory('$(WasmEmCacheDir)'))</_ItexoftEmscriptenCacheDir>
-        <_ItexoftEmscriptenCacheDir Condition="'$(_ItexoftEmscriptenCacheDir)' == ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftWasmIntermediateDir)', 'em-cache'))</_ItexoftEmscriptenCacheDir>
+        <!-- Input: the producer's intermediate directory and WasmEnableThreads value. Output: one
+             Emscripten cache directory owned by this build. Cache files may change; correctness
+             means each producer and thread mode use a separate writable directory. -->
+        <_ItexoftEmscriptenCacheDir>$([MSBuild]::NormalizeDirectory('$(_ItexoftWasmIntermediateRoot)', '$(_ItexoftRuntimeWasmThreadMode)', 'em-cache'))</_ItexoftEmscriptenCacheDir>
         <_ItexoftEmscriptenConfigPath>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'emscripten.config'))</_ItexoftEmscriptenConfigPath>
         <_ItexoftEmccLinkRsp>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'emcc-link.rsp'))</_ItexoftEmccLinkRsp>
         <_ItexoftWasmOutputDir Condition="'$(_IsPublishing)' == 'true' and '$(PublishDir)' != ''">$([MSBuild]::NormalizeDirectory($(PublishDir)))</_ItexoftWasmOutputDir>
@@ -65,33 +59,36 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_ItexoftTrimDescriptorPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateRoot), 'itexoft-trim-roots.xml'))</_ItexoftTrimDescriptorPath>
         <_ItexoftILLinkRspPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateRoot), 'itexoft-ilink.rsp'))</_ItexoftILLinkRspPath>
         <_ItexoftTrimmedAssemblyPath Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true'">$([MSBuild]::NormalizePath($(_ItexoftTrimIntermediateDir), '$(TargetFileName)'))</_ItexoftTrimmedAssemblyPath>
-        <_ItexoftWasmStripSymbols>$(StripSymbols)</_ItexoftWasmStripSymbols>
         <_ItexoftWasmDebug>true</_ItexoftWasmDebug>
         <_ItexoftWasmDebug Condition="'$(DebugSymbols)' == 'false'">false</_ItexoftWasmDebug>
         <_ItexoftWasmDebug Condition="'$(DebugType)' == 'none'">false</_ItexoftWasmDebug>
         <_ItexoftWasmDebug Condition="'$(PublishTrimmed)' == 'true'">false</_ItexoftWasmDebug>
         <_ItexoftOptimizationPreference Condition="'$(OptimizationPreference)' == 'Size'">Size</_ItexoftOptimizationPreference>
         <_ItexoftOptimizationPreference Condition="'$(OptimizationPreference)' == 'Speed'">Speed</_ItexoftOptimizationPreference>
-        <_ItexoftIlnegPackageRoot>$(Pkgilneg)</_ItexoftIlnegPackageRoot>
-        <_ItexoftLlvmErPackageRoot>$(Pkgllvm_er)</_ItexoftLlvmErPackageRoot>
     </PropertyGroup>
     <PropertyGroup>
+        <!-- Input: the runtime package selected by this SDK and its own thread setting. Output: the
+             compatible managed search root. Only SDK-local properties change; the result is
+             correct when the root contains the matching System.Private.CoreLib before AOT. -->
+        <_ItexoftRuntimeWasmManagedDir Condition="'$(PkgItexoft_dotnet_runtime_wasm)' != ''">$([MSBuild]::NormalizeDirectory('$(PkgItexoft_dotnet_runtime_wasm)', 'runtimes', '$(BrowserWasmRuntimeIdentifier)', 'lib', 'net$(_TargetFrameworkVersionWithoutV)', '$(_ItexoftRuntimeWasmThreadMode)'))</_ItexoftRuntimeWasmManagedDir>
         <_ItexoftRuntimeNativeDir>$([MSBuild]::NormalizeDirectory($(_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack), 'runtimes', '$(RuntimeIdentifier)', 'native'))</_ItexoftRuntimeNativeDir>
-        <_ItexoftRuntimeLibManagedDir>$([MSBuild]::NormalizeDirectory($(_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack), 'runtimes', '$(RuntimeIdentifier)', 'lib', '$(TargetFramework)'))</_ItexoftRuntimeLibManagedDir>
-        <_ItexoftEmscriptenToolsRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenSdkRuntimePack), 'tools'))</_ItexoftEmscriptenToolsRoot>
-        <_ItexoftEmscriptenBinRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'bin'))</_ItexoftEmscriptenBinRoot>
-        <_ItexoftEmscriptenRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'emscripten'))</_ItexoftEmscriptenRoot>
+        <_ItexoftRuntimeLibManagedDir>$([MSBuild]::NormalizeDirectory($(_ItexoftNetCoreAppRuntimeMonoRuntimeResolvedPack), 'runtimes', '$(RuntimeIdentifier)', 'lib', 'net$(_TargetFrameworkVersionWithoutV)'))</_ItexoftRuntimeLibManagedDir>
+        <!-- The Emscripten pack directories come from the workload manifest properties; the manifest
+             pins the pack version, so no directory probing can pick a pack from another SDK. -->
+        <_ItexoftEmscriptenToolsRoot Condition="'$(EmscriptenSdkToolsPath)' != ''">$([MSBuild]::NormalizeDirectory('$(EmscriptenSdkToolsPath)'))</_ItexoftEmscriptenToolsRoot>
+        <_ItexoftEmscriptenBinRoot Condition="'$(_ItexoftEmscriptenToolsRoot)' != ''">$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'bin'))</_ItexoftEmscriptenBinRoot>
+        <_ItexoftEmscriptenRoot Condition="'$(_ItexoftEmscriptenToolsRoot)' != ''">$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenToolsRoot), 'emscripten'))</_ItexoftEmscriptenRoot>
         <_ItexoftLlvmToolsBinRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftLlvmWasmToolsRoot), 'bin'))</_ItexoftLlvmToolsBinRoot>
-        <_ItexoftEmscriptenNodeToolsRoot>$([MSBuild]::NormalizeDirectory($(_ItexoftEmscriptenNodeRuntimePack), 'tools'))</_ItexoftEmscriptenNodeToolsRoot>
-        <_ItexoftMonoAotCrossPath>@(MonoAotCrossCompiler->WithMetadataValue('RuntimeIdentifier','$(RuntimeIdentifier)')->'%(Identity)')</_ItexoftMonoAotCrossPath>
+        <_ItexoftEmscriptenNodeToolsRoot Condition="'$(EmscriptenNodeToolsPath)' != ''">$([MSBuild]::NormalizeDirectory('$(EmscriptenNodeToolsPath)'))</_ItexoftEmscriptenNodeToolsRoot>
+        <_ItexoftMonoAotCrossPath Condition="'$(PkgItexoft_dotnet_runtime_wasm)' != '' and '$(NETCoreSdkRuntimeIdentifier)' != ''">$([MSBuild]::NormalizePath('$(PkgItexoft_dotnet_runtime_wasm)', 'tools', '$(NETCoreSdkRuntimeIdentifier)', 'mono-aot-cross$(_ItexoftExeExt)'))</_ItexoftMonoAotCrossPath>
         <_ItexoftLlvmOptPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'opt$(_ItexoftExeExt)'))</_ItexoftLlvmOptPath>
         <_ItexoftLlvmLlcPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llc$(_ItexoftExeExt)'))</_ItexoftLlvmLlcPath>
         <_ItexoftLlvmDisPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-dis$(_ItexoftExeExt)'))</_ItexoftLlvmDisPath>
         <_ItexoftLlvmAsPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-as$(_ItexoftExeExt)'))</_ItexoftLlvmAsPath>
-        <_ItexoftLlvmNmPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-nm$(_ItexoftExeExt)'))</_ItexoftLlvmNmPath>
         <_ItexoftLlvmObjcopyPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-objcopy$(_ItexoftExeExt)'))</_ItexoftLlvmObjcopyPath>
         <_ItexoftIlnegToolPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'ilneg$(_ItexoftExeExt)'))</_ItexoftIlnegToolPath>
         <_ItexoftLlvmErPath>$([MSBuild]::NormalizePath($(_ItexoftLlvmRoot), 'llvm-er$(_ItexoftExeExt)'))</_ItexoftLlvmErPath>
+        <_ItexoftWasmExportAliasesPath>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', 'wasm-export-aliases.mjs'))</_ItexoftWasmExportAliasesPath>
         <_ItexoftEmccFileName Condition="$([MSBuild]::IsOSPlatform('windows'))">emcc.bat</_ItexoftEmccFileName>
         <_ItexoftEmccFileName Condition="!$([MSBuild]::IsOSPlatform('windows'))">emcc</_ItexoftEmccFileName>
         <_ItexoftEmccPath>$([MSBuild]::NormalizePath($(_ItexoftEmscriptenRoot), '$(_ItexoftEmccFileName)'))</_ItexoftEmccPath>
@@ -105,19 +102,19 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <NuxmuxDir Include="$(_ItexoftLlvmErRoot)*" Path="$(_ItexoftLlvmRoot)"/>
     </ItemGroup>
     <PropertyGroup>
-        <_ItexoftMonoAotArguments>full;deterministic</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotArguments>full;deterministic;direct-icalls</_ItexoftMonoAotArguments>
         <_ItexoftMonoAotArguments Condition="'$(Optimize)' == 'false'">$(_ItexoftMonoAotArguments);no-opt</_ItexoftMonoAotArguments>
         <_ItexoftMonoAotArguments Condition="!$([MSBuild]::IsOSPlatform('windows'))">$(_ItexoftMonoAotArguments);compile-in-child</_ItexoftMonoAotArguments>
-        <_ItexoftMonoAotArguments Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftMonoAotArguments);mattr=simd</_ItexoftMonoAotArguments>
+        <_ItexoftMonoAotArguments Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftMonoAotArguments);mattr=simd128</_ItexoftMonoAotArguments>
         <_ItexoftMonoAotProcessArguments Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">--wasm-exceptions</_ItexoftMonoAotProcessArguments>
-        <_ItexoftMonoAotProcessArguments Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftMonoAotProcessArguments);--wasm-gc-safepoints</_ItexoftMonoAotProcessArguments>
-        <_ItexoftEmccOpt Condition="'$(WasmEnableVerbose)' == 'true'">-v</_ItexoftEmccOpt>
-        <_ItexoftEmccOpt Condition="'$(_ItexoftWasmDebug)' == 'true' or '$(Optimize)' == 'false'">$(_ItexoftEmccOpt) -O0</_ItexoftEmccOpt>
-        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">$(_ItexoftEmccOpt) -Oz</_ItexoftEmccOpt>
-        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Speed'">$(_ItexoftEmccOpt) -O3</_ItexoftEmccOpt>
-        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == ''">$(_ItexoftEmccOpt) -O2</_ItexoftEmccOpt>
-        <_ItexoftEmccCommonFlags>$(_ItexoftEmccOpt)</_ItexoftEmccCommonFlags>
-        <_ItexoftEmccCommonFlags>$(_ItexoftEmccCommonFlags) -fPIC</_ItexoftEmccCommonFlags>
+        <_ItexoftMonoAotProcessArguments Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftMonoAotProcessArguments)' != ''">$(_ItexoftMonoAotProcessArguments);--wasm-gc-safepoints</_ItexoftMonoAotProcessArguments>
+        <_ItexoftMonoAotProcessArguments Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftMonoAotProcessArguments)' == ''">--wasm-gc-safepoints</_ItexoftMonoAotProcessArguments>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftWasmDebug)' == 'true' or '$(Optimize)' == 'false'">-O0</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">-Oz</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Speed'">-O3</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(_ItexoftEmccOpt)' == ''">-O2</_ItexoftEmccOpt>
+        <_ItexoftEmccOpt Condition="'$(WasmEnableVerbose)' == 'true'">-v $(_ItexoftEmccOpt)</_ItexoftEmccOpt>
+        <_ItexoftEmccCommonFlags>$(_ItexoftEmccOpt) -fPIC</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(_ItexoftWasmDebug)' == 'true'">$(_ItexoftEmccCommonFlags) -g -s EMIT_PRODUCERS_SECTION=1</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmEnableSIMD)' == 'true'">$(_ItexoftEmccCommonFlags) -msimd128</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">$(_ItexoftEmccCommonFlags) -fwasm-exceptions</_ItexoftEmccCommonFlags>
@@ -125,7 +122,7 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_ItexoftEmccCommonFlags Condition="'$(WasmExceptionHandlingMode)' == 'none'">$(_ItexoftEmccCommonFlags) -fno-exceptions</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmEnableThreads)' == 'true'">$(_ItexoftEmccCommonFlags) -pthread -Wno-experimental</_ItexoftEmccCommonFlags>
         <_ItexoftEmccCommonFlags Condition="'$(WasmEnableThreads)' == 'true' and $(WasmThreadPoolSize) != ''">$(_ItexoftEmccCommonFlags) -s PTHREAD_POOL_SIZE=$(WasmThreadPoolSize)</_ItexoftEmccCommonFlags>
-        <_ItexoftEmccLinkFlags>-s SIDE_MODULE=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wl,--allow-undefined -Wl,--import-undefined -Wl,--no-entry</_ItexoftEmccLinkFlags>
+        <_ItexoftEmccLinkFlags>-s SIDE_MODULE=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wl,--allow-undefined -Wl,--import-undefined -Wl,--no-entry -Wl,--Bsymbolic</_ItexoftEmccLinkFlags>
         <_ItexoftRunWasmOpt Condition="'$(_ItexoftWasmDebug)' == 'true'">false</_ItexoftRunWasmOpt>
         <_ItexoftRunWasmOpt Condition="'$(_ItexoftWasmDebug)' != 'true'">true</_ItexoftRunWasmOpt>
         <_ItexoftWasmOptOpt Condition="'$(Optimize)' == 'false'">-O0</_ItexoftWasmOptOpt>
@@ -147,15 +144,12 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_ItexoftWasmOptFlags Condition="'$(WasmExceptionHandlingMode)' == 'wasm'">$(_ItexoftWasmOptFlags) --enable-exception-handling</_ItexoftWasmOptFlags>
         <_ItexoftWasmOptFlags Condition="'$(_ItexoftWasmDebug)' != 'true'">$(_ItexoftWasmOptFlags) --strip-dwarf --strip-producers</_ItexoftWasmOptFlags>
         <_ItexoftLlcOpt Condition="'$(_ItexoftWasmDebug)' == 'true' or '$(Optimize)' == 'false'">-O0</_ItexoftLlcOpt>
-        <_ItexoftLlcOpt Condition="'$(_ItexoftLlcOpt)' == '' and '$(_ItexoftOptimizationPreference)' == 'Size'">-O2</_ItexoftLlcOpt>
         <_ItexoftLlcOpt Condition="'$(_ItexoftLlcOpt)' == ''">-O2</_ItexoftLlcOpt>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableSIMD)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+simd128</_ItexoftLlcMattrFeatures>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableSIMD)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != ''">$(_ItexoftLlcMattrFeatures),+simd128</_ItexoftLlcMattrFeatures>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+bulk-memory</_ItexoftLlcMattrFeatures>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+bulk-memory'))">$(_ItexoftLlcMattrFeatures),+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableSIMD)' == 'true'">+simd128</_ItexoftLlcMattrFeatures>
         <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+atomics,+bulk-memory</_ItexoftLlcMattrFeatures>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+atomics'))">$(_ItexoftLlcMattrFeatures),+atomics</_ItexoftLlcMattrFeatures>
-        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != '' and !$([System.String]::Copy('$(_ItexoftLlcMattrFeatures)').Contains('+bulk-memory'))">$(_ItexoftLlcMattrFeatures),+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != ''">$(_ItexoftLlcMattrFeatures),+atomics,+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'false' and '$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' == ''">+bulk-memory</_ItexoftLlcMattrFeatures>
+        <_ItexoftLlcMattrFeatures Condition="'$(WasmEnableThreads)' == 'false' and '$(WasmEnableBulkMemory)' == 'true' and '$(_ItexoftLlcMattrFeatures)' != ''">$(_ItexoftLlcMattrFeatures),+bulk-memory</_ItexoftLlcMattrFeatures>
         <_ItexoftLlcMattr Condition="'$(_ItexoftLlcMattrFeatures)' != ''">-mattr=$(_ItexoftLlcMattrFeatures)</_ItexoftLlcMattr>
     </PropertyGroup>
     <PropertyGroup>
@@ -171,36 +165,41 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_ItexoftEmccCommandSuffix></_ItexoftEmccCommandSuffix>
     </PropertyGroup>
     <Target Name="ItexoftResolveWasmToolchain" DependsOnTargets="PrepareForBuild" BeforeTargets="Build">
+        <Error Condition="'$(WasmEnableThreads)' != 'true' and '$(WasmEnableThreads)' != 'false'" Text="WasmEnableThreads must be explicitly set to true or false."/>
         <Error Condition="'$(GenerateRuntimeConfigurationFiles)' == 'true' or '$(GenerateRuntimeConfigDevFile)' == 'true' or '$(GenerateDependencyFile)' == 'true'" Text="Runtime configuration files are not supported in this SDK."/>
         <Error Condition="'$(SystemRuntimeIdentifier)' == ''" Text="SystemRuntimeIdentifier is not set. Cannot resolve host tool packs."/>
-        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and ('$(_ItexoftILLinkToolPath)' == '' or !Exists('$(_ItexoftILLinkToolPath)'))" Text="ILLink tool is missing. Install the Microsoft.NET.ILLink.Tasks pack."/>
-        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(_ItexoftIlnegPackageRoot)' == ''" Text="ilneg package is not resolved. Install the ilneg package."/>
-        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and ('$(_ItexoftIlnegToolPath)' == '' or !Exists('$(_ItexoftIlnegToolPath)'))" Text="ilneg tool is missing. Install the ilneg package."/>
-        <Error Condition="'$(_ItexoftLlvmErPackageRoot)' == ''" Text="llvm-er package is not resolved. Install the llvm-er package."/>
-        <Error Condition="'$(_ItexoftLlvmErPath)' == '' or !Exists('$(_ItexoftLlvmErPath)')" Text="llvm-er tool is missing. Install the llvm-er package."/>
-        <Error Condition="'$(_ItexoftLlvmWasmToolsRoot)' == ''" Text="llvm.wasm-tools.$(SystemRuntimeIdentifier) is not resolved. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmOptPath)' == '' or !Exists('$(_ItexoftLlvmOptPath)')" Text="LLVM opt tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmLlcPath)' == '' or !Exists('$(_ItexoftLlvmLlcPath)')" Text="LLVM llc tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmDisPath)' == '' or !Exists('$(_ItexoftLlvmDisPath)')" Text="LLVM llvm-dis tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmAsPath)' == '' or !Exists('$(_ItexoftLlvmAsPath)')" Text="LLVM llvm-as tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmNmPath)' == '' or !Exists('$(_ItexoftLlvmNmPath)')" Text="LLVM llvm-nm tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
-        <Error Condition="'$(_ItexoftLlvmObjcopyPath)' == '' or !Exists('$(_ItexoftLlvmObjcopyPath)')" Text="LLVM llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
-        <Error Condition="'$(_ItexoftWasmStripSymbols)' == 'true' and ('$(ObjCopyName)' == '' or !Exists('$(ObjCopyName)'))" Text="llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
-        <Error Condition="'$(_ItexoftRuntimeNativeDir)' == '' or !Exists('$(_ItexoftRuntimeNativeDir)')" Text="Runtime pack is missing. Install the wasm workload and runtime pack."/>
-        <Error Condition="'$(_ItexoftRuntimeLibManagedDir)' == '' or !Exists('$(_ItexoftRuntimeLibManagedDir)')" Text="Runtime managed library directory is missing."/>
-        <Error Condition="'$(_ItexoftEmscriptenToolsRoot)' == '' or !Exists('$(_ItexoftEmscriptenToolsRoot)')" Text="Emscripten workload pack is missing. Install the wasm workload."/>
-        <Error Condition="'$(_ItexoftEmscriptenNodeToolsRoot)' == '' or !Exists('$(_ItexoftEmscriptenNodeToolsRoot)')" Text="Emscripten node pack is missing. Install the wasm workload."/>
-        <Error Condition="'$(_ItexoftMonoAotCrossPath)' == '' or !Exists('$(_ItexoftMonoAotCrossPath)')" Text="Mono AOT cross compiler pack is missing. Install the wasm workload."/>
-        <Error Condition="'$(_ItexoftWasmOptPath)' == '' or !Exists('$(_ItexoftWasmOptPath)')" Text="wasm-opt tool is missing. Install the wasm workload."/>
-        <Error Condition="'$(_ItexoftEmccPath)' == '' or !Exists('$(_ItexoftEmccPath)')" Text="emcc tool is missing. Install the wasm workload."/>
-        <Exec Command="chmod +x &quot;$(_ItexoftLlvmErPath)&quot;"
-              Condition="!$([MSBuild]::IsOSPlatform('windows')) and '$(_ItexoftLlvmErPath)' != '' and Exists('$(_ItexoftLlvmErPath)')"
+        <Error Condition="!Exists('$(_ItexoftDotNetExe)')" Text=".NET host is missing. Set DOTNET_HOST_PATH or NetCoreRoot."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and !Exists('$(_ItexoftILLinkToolPath)')" Text="ILLink tool is missing. Install the Microsoft.NET.ILLink.Tasks pack."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and '$(Pkgilneg)' == ''" Text="ilneg package is not resolved. Install the ilneg package."/>
+        <Error Condition="'$(_ItexoftTrimManagedAssemblies)' == 'true' and !Exists('$(_ItexoftIlnegToolPath)')" Text="ilneg tool is missing. Install the ilneg package."/>
+        <Error Condition="'$(Pkgllvm_er)' == ''" Text="llvm-er package is not resolved. Install the llvm-er package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmErPath)')" Text="llvm-er tool is missing. Install the llvm-er package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmOptPath)')" Text="LLVM opt tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmLlcPath)')" Text="LLVM llc tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmDisPath)')" Text="LLVM llvm-dis tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmAsPath)')" Text="LLVM llvm-as tool is missing. Install the llvm.wasm-tools.$(SystemRuntimeIdentifier) package."/>
+        <Error Condition="!Exists('$(_ItexoftLlvmObjcopyPath)')" Text="LLVM llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
+        <Error Condition="!Exists('$(_ItexoftWasmExportAliasesPath)')" Text="WebAssembly export alias tool is missing from the SDK."/>
+        <Error Condition="'$(StripSymbols)' == 'true' and !Exists('$(ObjCopyName)')" Text="llvm-objcopy tool is missing. Install the llvm.objcopy package."/>
+        <Error Condition="!Exists('$(_ItexoftRuntimeNativeDir)')" Text="Runtime pack is missing. Install the wasm workload and runtime pack."/>
+        <Error Condition="!Exists('$(_ItexoftRuntimeLibManagedDir)')" Text="Runtime managed library directory is missing."/>
+        <Error Condition="!Exists('$(_ItexoftRuntimeWasmManagedDir)')" Text="SDK runtime managed directory is missing: $(_ItexoftRuntimeWasmManagedDir)"/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmManagedDir), &quot;System.Private.CoreLib.dll&quot;))')" Text="SDK runtime managed directory does not contain System.Private.CoreLib.dll: $(_ItexoftRuntimeWasmManagedDir)"/>
+        <Error Condition="!Exists('$(_ItexoftEmscriptenToolsRoot)')" Text="Emscripten workload pack is missing. Install the wasm workload."/>
+        <MakeDir Directories="$(_ItexoftEmscriptenCacheDir)"/>
+        <Error Condition="!Exists('$(_ItexoftEmscriptenCacheDir)')" Text="Emscripten workload cache is missing. Install the wasm workload."/>
+        <Error Condition="!Exists('$(_ItexoftEmscriptenNodeToolsRoot)')" Text="Emscripten node pack is missing. Install the wasm workload."/>
+        <Error Condition="'$(NETCoreSdkRuntimeIdentifier)' == ''" Text="NETCoreSdkRuntimeIdentifier is not set. Cannot select the host AOT compiler."/>
+        <Error Condition="!Exists('$(_ItexoftMonoAotCrossPath)')" Text="The runtime package does not contain the matching Mono AOT compiler: $(_ItexoftMonoAotCrossPath)"/>
+        <Error Condition="!Exists('$(_ItexoftWasmOptPath)')" Text="wasm-opt tool is missing. Install the wasm workload."/>
+        <Error Condition="!Exists('$(_ItexoftEmccPath)')" Text="emcc tool is missing. Install the wasm workload."/>
+        <ItemGroup>
+            <_ItexoftChmodTool Include="$(_ItexoftMonoAotCrossPath);$(_ItexoftLlvmErPath);$(_ItexoftIlnegToolPath)"/>
+        </ItemGroup>
+        <Exec Command="chmod +x &quot;%(_ItexoftChmodTool.Identity)&quot;"
+              Condition="!$([MSBuild]::IsOSPlatform('windows')) and Exists('%(_ItexoftChmodTool.Identity)')"
               StandardOutputImportance="Low"
-              StandardErrorImportance="Low"/>
-        <Exec Command="chmod +x &quot;$(_ItexoftIlnegToolPath)&quot;"
-              Condition="!$([MSBuild]::IsOSPlatform('windows')) and '$(_ItexoftIlnegToolPath)' != '' and Exists('$(_ItexoftIlnegToolPath)')"
-              StandardOutputImportance="Low"
-              StandardErrorImportance="Low"/>
+              StandardErrorImportance="High"/>
     </Target>
     <Target Name="ItexoftWasmBuild"
             AfterTargets="Build"
@@ -242,8 +241,41 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
             </BuiltProjectOutputGroupKeyOutput>
         </ItemGroup>
     </Target>
+    <!--
+        BuildWasmSideModule input: Configuration, WasmEnableThreads, _IsPublishing and
+        BaseIntermediateOutputPath global properties. Output: exactly one Wasm
+        artifact and one ManagedImage artifact in WasmSideModuleArtifact. Producer build state
+        changes under the supplied roots; correctness means both returned paths exist and the Wasm
+        artifact is linked as a side module by ItexoftWasmBuildCore.
+    -->
+    <Target Name="BuildWasmSideModule"
+            DependsOnTargets="ItexoftWasmBuildCore"
+            Returns="@(WasmSideModuleArtifact)">
+        <ItemGroup>
+            <WasmSideModuleArtifact Remove="@(WasmSideModuleArtifact)"/>
+            <_ItexoftWasmSideModuleManagedImage Remove="@(_ItexoftWasmSideModuleManagedImage)"/>
+            <_ItexoftWasmSideModuleManagedImage Include="@(_ItexoftAotAssembly)"/>
+        </ItemGroup>
+        <PropertyGroup>
+            <_ItexoftWasmSideModuleManagedImageCount>@(_ItexoftWasmSideModuleManagedImage->Count())</_ItexoftWasmSideModuleManagedImageCount>
+        </PropertyGroup>
+        <Error Condition="!Exists('$(_ItexoftWasmIntermediateOutputPath)')"
+               Text="Wasm side-module output was not produced: $(_ItexoftWasmIntermediateOutputPath)"/>
+        <Error Condition="'$(_ItexoftWasmSideModuleManagedImageCount)' != '1'"
+               Text="BuildWasmSideModule requires exactly one managed image, but received $(_ItexoftWasmSideModuleManagedImageCount)."/>
+        <Error Condition="!Exists('%(_ItexoftWasmSideModuleManagedImage.Identity)')"
+               Text="Managed side-module image was not produced: %(_ItexoftWasmSideModuleManagedImage.Identity)"/>
+        <ItemGroup>
+            <WasmSideModuleArtifact Include="$(_ItexoftWasmIntermediateOutputPath)">
+                <ArtifactKind>Wasm</ArtifactKind>
+            </WasmSideModuleArtifact>
+            <WasmSideModuleArtifact Include="@(_ItexoftWasmSideModuleManagedImage)">
+                <ArtifactKind>ManagedImage</ArtifactKind>
+            </WasmSideModuleArtifact>
+        </ItemGroup>
+    </Target>
     <Target Name="ItexoftWasmBuildCore"
-            DependsOnTargets="ItexoftResolveWasmToolchain;CoreCompile">
+            DependsOnTargets="ItexoftResolveWasmToolchain;Compile">
         <MakeDir Directories="$(_ItexoftWasmIntermediateDir);$(_ItexoftEmscriptenCacheDir);$(_ItexoftWasmOutputDir);$(_ItexoftTrimIntermediateDir)"/>
         <ItemGroup>
             <_ItexoftAotAssembly Include="@(IntermediateAssembly)"/>
@@ -284,16 +316,24 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
             <_ItexoftAotAssembly Remove="@(_ItexoftAotAssembly)"/>
             <_ItexoftAotAssembly Include="$(_ItexoftTrimmedAssemblyPath)"/>
         </ItemGroup>
+        <!-- Input: the compiler-owned EntryPoint-to-wrapper relation. Output: one exact public
+             symbol list and LLVM bitcode whose wrapper definitions are externally visible and
+             whose aliases use the requested EntryPoint names. The LLVM IR changes; correctness
+             means every compiler record resolves to one wrapper definition and one public alias. -->
+        <PropertyGroup>
+            <_ItexoftNativeWrapperSymbolFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '$(TargetName).wrapper-symbols'))</_ItexoftNativeWrapperSymbolFile>
+            <_ItexoftPublicExportSymbolFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '$(TargetName).public-symbols'))</_ItexoftPublicExportSymbolFile>
+        </PropertyGroup>
         <ItemGroup Condition="'@(_ItexoftAotAssembly)' != ''">
             <_ItexoftAotAssembly Update="@(_ItexoftAotAssembly)">
-                <ItexoftExportSymbolsFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).exportsymbols'))</ItexoftExportSymbolsFile>
-                <AotArguments>$(_ItexoftMonoAotArguments)</AotArguments>
+                <AotArguments>$(_ItexoftMonoAotArguments);export-symbols-map</AotArguments>
                 <ProcessArguments>$(_ItexoftMonoAotProcessArguments)</ProcessArguments>
             </_ItexoftAotAssembly>
         </ItemGroup>
         <ItemGroup>
             <_ItexoftMonoPathItem Include="$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory), $(IntermediateOutputPath)))"/>
             <_ItexoftMonoPathItem Include="@(_ItexoftAotAssembly->'$([System.IO.Path]::GetDirectoryName('%(FullPath)'))')"/>
+            <_ItexoftMonoPathItem Include="$(_ItexoftRuntimeWasmManagedDir)"/>
             <_ItexoftMonoPathItem Include="$(_ItexoftRuntimeNativeDir)"/>
             <_ItexoftMonoPathItem Include="$(_ItexoftRuntimeLibManagedDir)"/>
             <_ItexoftMonoPathItem Remove="@(_ItexoftMonoPathItem)" Condition="'%(Identity)' == '' or !Exists('%(Identity)')"/>
@@ -307,6 +347,7 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
             <_ItexoftEmscriptenConfigLine Include="CACHE = r'$([System.IO.Path]::TrimEndingDirectorySeparator('$(_ItexoftEmscriptenCacheDir)'))'"/>
         </ItemGroup>
         <WriteLinesToFile File="$(_ItexoftEmscriptenConfigPath)" Lines="@(_ItexoftEmscriptenConfigLine)" Overwrite="true"/>
+        <Delete Files="$(_ItexoftNativeWrapperSymbolFile);$(_ItexoftPublicExportSymbolFile)"/>
         <MonoAOTCompiler Condition="'@(_ItexoftAotAssembly)' != ''"
                          CompilerBinaryPath="$(_ItexoftMonoAotCrossPath)"
                          Assemblies="@(_ItexoftAotAssembly)"
@@ -316,7 +357,6 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
                          OutputType="AsmOnly"
                          UseLLVM="true"
                          UseStaticLinking="true"
-                         UseDirectIcalls="true"
                          UseAotDataFile="false"
                          EnableUnmanagedCallersOnlyMethodsExport="true"
                          LLVMPath="$(_ItexoftLlvmToolsBinRoot)"
@@ -325,65 +365,34 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
             <Output TaskParameter="CompiledAssemblies" ItemName="_ItexoftAotCompiledAssembly"/>
         </MonoAOTCompiler>
         <ItemGroup>
-            <_ItexoftExportSymbolsFile Include="@(_ItexoftAotAssembly->'%(ItexoftExportSymbolsFile)')"/>
-            <_ItexoftMissingExportSymbolsFile Include="@(_ItexoftExportSymbolsFile)" Condition="!Exists('%(Identity)')"/>
-        </ItemGroup>
-        <Error Condition="'@(_ItexoftMissingExportSymbolsFile)' != ''"
-               Text="Export symbols file not generated: @(_ItexoftMissingExportSymbolsFile)"/>
-        <ItemGroup>
+            <_ItexoftExportSymbolsMapFile Remove="@(_ItexoftExportSymbolsMapFile)"/>
+            <_ItexoftExportSymbolsMapFile Include="@(_ItexoftAotCompiledAssembly->'%(ExportSymbolsFile)')"/>
             <_ItexoftAotBitcode Include="@(_ItexoftAotCompiledAssembly->'%(LlvmBitcodeFile)')"/>
         </ItemGroup>
+        <Error Condition="'@(_ItexoftExportSymbolsMapFile)' == ''"
+               Text="AOT compiler did not report an export symbols map."/>
+        <Error Condition="!Exists('%(_ItexoftExportSymbolsMapFile.Identity)')"
+               Text="AOT compiler did not produce the export symbols map: %(_ItexoftExportSymbolsMapFile.Identity)"/>
         <Error Condition="'@(_ItexoftAotCompiledAssembly)' != '' and '@(_ItexoftAotBitcode)' == ''"
                Text="AOT compiler did not produce LLVM bitcode output."/>
-        <ReadLinesFromFile File="@(_ItexoftExportSymbolsFile)" Condition="'@(_ItexoftExportSymbolsFile)' != ''">
-            <Output TaskParameter="Lines" ItemName="_ItexoftManagedExportedSymbolRaw"/>
-        </ReadLinesFromFile>
-        <ItemGroup>
-            <_ItexoftManagedExportedSymbolRaw Remove="@(_ItexoftManagedExportedSymbolRaw)" Condition="'%(Identity)' == ''"/>
-        </ItemGroup>
-        <RemoveDuplicates Inputs="@(_ItexoftManagedExportedSymbolRaw)" Condition="'@(_ItexoftManagedExportedSymbolRaw)' != ''">
-            <Output TaskParameter="Filtered" ItemName="_ItexoftManagedExportedSymbol"/>
-        </RemoveDuplicates>
-        <Error Condition="'@(_ItexoftExportSymbolsFile)' != '' and '@(_ItexoftManagedExportedSymbol)' == ''"
-               Text="No UnmanagedCallersOnly exports found. This SDK builds an importable wasm module and requires at least one exported method."/>
         <ItemGroup Condition="'@(_ItexoftAotBitcode)' != ''">
             <_ItexoftAotBitcode Update="@(_ItexoftAotBitcode)">
-                <ItexoftNmSymbolsFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).nm.symbols'))</ItexoftNmSymbolsFile>
                 <ItexoftLlvmIrFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).ll'))</ItexoftLlvmIrFile>
                 <ItexoftLlvmRewrittenBitcodeFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).rewrite.bc'))</ItexoftLlvmRewrittenBitcodeFile>
             </_ItexoftAotBitcode>
         </ItemGroup>
-        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmNmPath)&quot; --defined-only --format=just-symbols &quot;%(_ItexoftAotBitcode.Identity)&quot; &gt; &quot;%(_ItexoftAotBitcode.ItexoftNmSymbolsFile)&quot;$(_ItexoftEmccCommandSuffix)"
-              Condition="'@(_ItexoftAotBitcode)' != ''"
-              StandardOutputImportance="Low"
-              StandardErrorImportance="High"/>
-        <ReadLinesFromFile File="@(_ItexoftAotBitcode->'%(ItexoftNmSymbolsFile)')" Condition="'@(_ItexoftAotBitcode)' != ''">
-            <Output TaskParameter="Lines" ItemName="_ItexoftExportedSymbolRaw"/>
-        </ReadLinesFromFile>
-        <ItemGroup>
-            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="'%(Identity)' == ''"/>
-            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="!$([System.String]::Copy('%(Identity)').Contains('wrapper_native_to_managed_'))"/>
-            <_ItexoftExportedSymbolRaw Remove="@(_ItexoftExportedSymbolRaw)" Condition="$([System.String]::Copy('%(Identity)').StartsWith('info_'))"/>
-        </ItemGroup>
-        <RemoveDuplicates Inputs="@(_ItexoftExportedSymbolRaw)" Condition="'@(_ItexoftExportedSymbolRaw)' != ''">
-            <Output TaskParameter="Filtered" ItemName="_ItexoftExportedSymbol"/>
-        </RemoveDuplicates>
-        <Error Condition="'@(_ItexoftExportedSymbol)' == ''"
-               Text="No native export symbols were resolved from AOT output."/>
-        <PropertyGroup>
-            <_ItexoftExportedSymbolFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'itexoft-exported.symbols'))</_ItexoftExportedSymbolFile>
-        </PropertyGroup>
-        <WriteLinesToFile File="$(_ItexoftExportedSymbolFile)"
-                          Lines="@(_ItexoftExportedSymbol)"
-                          Overwrite="true"
-                          Condition="'@(_ItexoftExportedSymbol)' != ''"/>
         <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmDisPath)&quot; -o &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot; &quot;%(_ItexoftAotBitcode.Identity)&quot;$(_ItexoftEmccCommandSuffix)"
               Condition="'@(_ItexoftAotBitcode)' != ''"
               StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
               StandardErrorImportance="High"
               ConsoleToMSBuild="$(WasmEnableVerbose)"/>
-        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmErPath)&quot; --exports &quot;$(_ItexoftExportedSymbolFile)&quot; --inplace &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot;$(_ItexoftEmccCommandSuffix)"
-              Condition="'@(_ItexoftAotBitcode)' != '' and '@(_ItexoftExportedSymbol)' != ''"
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftNodeJsPath)&quot; &quot;$(_ItexoftWasmExportAliasesPath)&quot; &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot; &quot;@(_ItexoftExportSymbolsMapFile)&quot; &quot;$(_ItexoftNativeWrapperSymbolFile)&quot; &quot;$(_ItexoftPublicExportSymbolFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
+              StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
+              StandardErrorImportance="High"
+              ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <Exec Command="$(_ItexoftEmccCommandPrefix) &quot;$(_ItexoftLlvmErPath)&quot; --exports &quot;$(_ItexoftNativeWrapperSymbolFile)&quot; --inplace &quot;%(_ItexoftAotBitcode.ItexoftLlvmIrFile)&quot;$(_ItexoftEmccCommandSuffix)"
+              Condition="'@(_ItexoftAotBitcode)' != ''"
               StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
               StandardErrorImportance="High"
               ConsoleToMSBuild="$(WasmEnableVerbose)"/>
@@ -392,6 +401,11 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
               StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
               StandardErrorImportance="High"
               ConsoleToMSBuild="$(WasmEnableVerbose)"/>
+        <ReadLinesFromFile File="$(_ItexoftPublicExportSymbolFile)" Condition="Exists('$(_ItexoftPublicExportSymbolFile)')">
+            <Output TaskParameter="Lines" ItemName="_ItexoftManagedExportedSymbol"/>
+        </ReadLinesFromFile>
+        <Error Condition="'@(_ItexoftManagedExportedSymbol)' == ''"
+               Text="No UnmanagedCallersOnly exports found. This SDK builds an importable wasm module and requires at least one exported method."/>
         <ItemGroup Condition="'@(_ItexoftAotBitcode)' != ''">
             <_ItexoftAotObject Include="@(_ItexoftAotBitcode)">
                 <ObjectFile>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), '%(FileName).o'))</ObjectFile>
@@ -406,7 +420,7 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <ItemGroup>
             <_ItexoftEmccLinkLine Include="--emit-symbol-map" Condition="'$(_ItexoftWasmDebug)' == 'true'"/>
             <_ItexoftEmccLinkLine Include="$(_ItexoftEmccLinkFlags)" Condition="'$(_ItexoftEmccLinkFlags)' != ''"/>
-            <_ItexoftEmccLinkLine Include="@(_ItexoftExportedSymbol->'-Wl,--export-if-defined=%(Identity)')"/>
+            <_ItexoftEmccLinkLine Include="@(_ItexoftManagedExportedSymbol->'-Wl,--export-if-defined=%(Identity)')"/>
             <_ItexoftEmccLinkLine Include="-o &quot;$(_ItexoftWasmIntermediateOutputPath)&quot;"/>
             <_ItexoftEmccLinkLine Include="@(_ItexoftAotObject->'&quot;%(ObjectFile)&quot;')"/>
         </ItemGroup>
@@ -423,7 +437,7 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
               ConsoleToMSBuild="$(WasmEnableVerbose)"/>
         <Move SourceFiles="$(_ItexoftWasmIntermediateOutputTempPath)" DestinationFiles="$(_ItexoftWasmIntermediateOutputPath)" OverwriteReadOnlyFiles="true" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
         <Exec Command="&quot;$(ObjCopyName)&quot; -w --remove-section=.debug* --remove-section=name --remove-section=producers &quot;$(_ItexoftWasmIntermediateOutputPath)&quot; &quot;$(_ItexoftWasmIntermediateOutputTempPath)&quot;"
-              Condition="'$(_ItexoftWasmStripSymbols)' == 'true' and Exists('$(_ItexoftWasmIntermediateOutputPath)')"
+              Condition="'$(StripSymbols)' == 'true' and Exists('$(_ItexoftWasmIntermediateOutputPath)')"
               StandardOutputImportance="$(_ItexoftStandardOutputImportance)"
               StandardErrorImportance="High"
               ConsoleToMSBuild="$(WasmEnableVerbose)"/>
@@ -435,9 +449,5 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
               OverwriteReadOnlyFiles="true"
               Condition="'$(_ItexoftWasmDebug)' == 'true' and Exists('$(_ItexoftWasmIntermediateOutputPath).symbols') and '$(_ItexoftWasmIntermediateOutputPath).symbols' != '$(_ItexoftWasmOutputPath).symbols'"/>
         <Delete Files="$(_ItexoftWasmIntermediateOutputTempPath)" Condition="Exists('$(_ItexoftWasmIntermediateOutputTempPath)')"/>
-        <ItemGroup>
-            <FileWrites Include="$(_ItexoftWasmIntermediateOutputPath)"/>
-            <FileWrites Include="$(_ItexoftWasmOutputPath)"/>
-        </ItemGroup>
     </Target>
 </Project>

@@ -7,7 +7,29 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
     <Import Project="Global.targets"/>
     <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk"/>
 
-    <PropertyGroup Condition="'$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)' and '$(PublishAot)' == 'true' and '$(_IsPublishing)' == 'true'">
+    <ItemGroup>
+        <PackageReference Include="llvm.objcopy" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true" />
+    </ItemGroup>
+    
+    <PropertyGroup>
+        <ObjCopyName>$([MSBuild]::NormalizePath($(Pkgllvm_objcopy), 'runtimes', '$(SystemRuntimeIdentifier)', 'native', 'bin', 'llvm-objcopy$(_ItexoftExeExt)'))</ObjCopyName>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(IsBrowserWasm)' == 'true'">
+        <_ItexoftILLinkTargetFramework>net$(_TargetFrameworkVersionWithoutV)</_ItexoftILLinkTargetFramework>
+        <_ItexoftRuntimeWasmPackageVersion Condition="'$(_ItexoftRuntimeWasmPackageVersion)' == ''">$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)', 2)).*</_ItexoftRuntimeWasmPackageVersion>
+    </PropertyGroup>
+    
+    <ItemGroup Condition="'$(IsBrowserWasm)' == 'true'">
+        <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="@(KnownILLinkPack->WithMetadataValue('TargetFramework', '$(_ItexoftILLinkTargetFramework)')->'%(ILLinkPackVersion)')" PrivateAssets="all" GeneratePathProperty="true" />
+        <PackageReference Include="llvm.wasm-tools.$(SystemRuntimeIdentifier)" Version="19.*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="llvm.er" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="ilneg" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="nuxmux" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="Itexoft.dotnet.runtime.wasm" Version="$(_ItexoftRuntimeWasmPackageVersion)" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(IsBrowserWasm)' == 'true' and '$(PublishAot)' == 'true'">
         <_ItexoftWasmPublishAot>true</_ItexoftWasmPublishAot>
         <TargetArchitecture>wasm</TargetArchitecture>
         <TargetOS>browser</TargetOS>
@@ -36,4 +58,5 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
             <RunILLink>$(_ItexoftRunILLink)</RunILLink>
         </PropertyGroup>
     </Target>
+
 </Project>

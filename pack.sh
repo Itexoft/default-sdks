@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT_DIR/nuget}"
-DEFAULT_VERSION="0.1.0"
 VERSION_OVERRIDE=""
 ALL=false
 REQUESTED_PROJECTS=()
@@ -75,9 +74,7 @@ fi
 
 if [[ "$ALL" == true || ${#REQUESTED_PROJECTS[@]} -eq 0 ]]; then
   while IFS= read -r proj; do
-    if grep -q "PackageType>MSBuildSdk<" "$proj"; then
-      PROJECTS+=("$proj")
-    fi
+    PROJECTS+=("$proj")
   done < <(find "$ROOT_DIR/src" -mindepth 2 -maxdepth 2 -name "*.csproj" -print | sort)
 else
   for input in "${REQUESTED_PROJECTS[@]}"; do
@@ -103,10 +100,14 @@ for project in "${PROJECTS[@]}"; do
   if [[ -z "$version" && -f "$project_dir/VERSION" ]]; then
     version="$(cat "$project_dir/VERSION")"
   fi
-  version="${version:-$DEFAULT_VERSION}"
+  if [[ -z "$version" ]]; then
+    echo "No version for $project: pass --version or add $project_dir/VERSION." >&2
+    exit 1
+  fi
 
   echo "Packing $(basename "$project") (version $version)"
-  dotnet msbuild "$project" -nologo -t:Pack -p:IsPackable=true -p:Configuration=Release -p:PackageOutputPath="$OUT_DIR" -p:PackageVersion="$version" -v:minimal
+  rm -rf "$project_dir/obj" "$project_dir/bin"
+  dotnet msbuild "$project" -nologo -restore -t:Pack -p:IsPackable=true -p:Configuration=Release -p:PackageOutputPath="$OUT_DIR" -p:PackageVersion="$version" -v:minimal
 done
 
 echo "Packages created in: $OUT_DIR"
