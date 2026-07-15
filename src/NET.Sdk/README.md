@@ -1,37 +1,44 @@
 # Itexoft.NET.Sdk
 
-### Purpose
-`Itexoft.NET.Sdk` is a wrapper over `Microsoft.NET.Sdk`.
-Currently, it behaves like the base SDK in normal cases and adds a NativeAOT WebAssembly side-module pipeline when `RuntimeIdentifier=browser-wasm`.
+## Purpose
 
-### Why use it
-- Produce a single importable `.wasm` module from managed code.
-- Keep the output clean: no JS/HTML, no static web assets, no runtime config or deps files.
-- Use the installed wasm workload toolchain plus lightweight LLVM helpers.
+`Itexoft.NET.Sdk` builds a managed project into a WebAssembly module that the browser .NET runtime loads dynamically at run time.
 
-### What it produces
-- `$(TargetName).wasm` side module with no entry point.
-- Optional `$(TargetName).wasm.symbols` when debug info is enabled.
-- Exports are taken only from `UnmanagedCallersOnly` methods (build fails if none).
+The SDK takes an ordinary project and its WebAssembly settings, resolves the compatible tools and runtime package on its own, and produces:
 
-### Requirements
-- .NET SDK with the wasm workload: `dotnet workload install wasm-tools` and `dotnet workload install wasm-experimental`.
-- `RuntimeIdentifier=browser-wasm`.
-- `PublishAot=true`.
-- A modern target framework (tested with `net10.0`).
+- `$(TargetName).wasm`, linked with `SIDE_MODULE=1` and no entry point;
+- the managed assembly image that matches that wasm;
+- a symbol file when debug output is enabled.
 
-### Quick start
+The SDK does not know the concrete library, the resource owner, or the resource names. It only builds the side module and returns the paths of the produced files.
+
+## Operational definitions
+
+- **Dynamically loaded module**: input — a managed assembly with `UnmanagedCallersOnly` exports; output — a wasm linked with `SIDE_MODULE=1`; changed state — the set of build artifacts; correctness — the module is loaded through `dlopen`/`NativeLibrary.Load` instead of being linked statically into the main wasm.
+- **Side-module build result**: input — the producer project; output — the `Wasm` and `ManagedImage` items of the `BuildWasmSideModule` target; changed state — only the producer project's files; correctness — both returned files exist.
+- **Thread mode**: input — `WasmEnableThreads=true|false`; output — a multithreaded or singlethreaded wasm and a compatible runtime; changed state — compiler flags and the selected runtime variant; correctness — the value matches between the main module and every dynamically loaded module.
+- **Export table**: input — methods with `UnmanagedCallersOnly.EntryPoint`; output — exact pairs of public name and LLVM wrapper; changed state — the side module's intermediate representation; correctness — every pair is unique, the wrapper exists, and the public name is exported by the final wasm.
+
+## Producer project
+
+The project describes only its own managed code:
+
 ```xml
 <Project Sdk="Itexoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <TargetFramework>net10.0-browser</TargetFramework>
     <PublishAot>true</PublishAot>
+    <WasmEnableThreads>true</WasmEnableThreads>
   </PropertyGroup>
 </Project>
 ```
 
-Exported entry point:
+The SDK derives `browser-wasm` from the target platform. The producer project enables AOT, because the side module's native code comes from AOT compilation, and sets its own thread mode. It does not set `RuntimeIdentifier`, runtime-package paths, or linker options.
+
+`BuildWasmSideModule` returns two items with `ArtifactKind=Wasm` and `ArtifactKind=ManagedImage`. Consuming or embedding these files is the calling project layer's job, not the SDK's.
+
+An exported function:
+
 ```csharp
 using System.Runtime.InteropServices;
 
@@ -42,58 +49,39 @@ public static class Exports
 }
 ```
 
-Publish (this generates the `.wasm` output):
-```
-dotnet publish -c Release -r browser-wasm
-```
+## How exports are formed
 
-### Output
-- `dotnet publish` places artifacts in `bin/<config>/<tfm>/publish/` (or `PublishDir` if set).
-- `*.wasm.symbols` is emitted when debug symbols are enabled.
-- The module is importable; the host provides any missing runtime symbols.
+For every exported method the AOT compiler reports the exact `EntryPoint → LLVM wrapper` pair to the SDK. It does not make the wrapper public specifically for the side module, does not create an alias, and does not pick linker exports.
 
-### Configuration (public properties)
+The SDK uses only that table: it makes the reported wrapper visible to the native linker, creates an LLVM alias named after the `EntryPoint`, and passes that name via `--export-if-defined`. Prefix-based wrapper lookup, positional matching of two lists, and alias creation inside Mono are not used.
 
-Core:
-| Property | Default | Notes |
+## Main-module contract
+
+The main wasm must be built with the `MAIN_MODULE` level that matches the runtime variant (`mm1` or `mm2`) selected by the host SDK. Linking a dynamically loaded module statically into the main wasm is not supported.
+
+The `WasmEnableThreads` value must match:
+
+| Main wasm | Loaded wasm | Result |
 | --- | --- | --- |
-| RuntimeIdentifier | required | Must be `browser-wasm` to enable the wasm pipeline. |
-| PublishAot | required | NativeAOT is mandatory for this SDK. |
-| TargetFramework | project | Use a modern net version (tested with `net10.0`). |
+| `true` | `true` | compatible multithreaded loading |
+| `false` | `false` | compatible singlethreaded loading |
+| mixed values | mixed values | incompatible memory and atomic operations |
 
-Diagnostics & optimization:
-| Property | Notes |
-| --- | --- |
-| DebugSymbols | Enables symbol map output. |
-| DebugType | `none` disables debug output. |
-| Optimize | `false` forces `-O0`. |
-| OptimizationPreference | `Size` uses `-Oz`; `Speed` uses `-O3` |
-| PublishTrimmed | When `true`, debug output is suppressed. |
-| StripSymbols | When `true`, strips debug sections with `llvm-objcopy`. |
+## Public inputs
 
-Wasm feature flags:
-| Property | Default | Notes |
+| Input | Value | Purpose |
 | --- | --- | --- |
-| WasmExceptionHandlingMode | `wasm` | `wasm`, `default`, or `none`. |
-| WasmEnableSIMD | true | Enables SIMD in AOT, emcc, and wasm-opt. |
-| WasmEnableThreads | true | Enables pthreads and uses the multithread runtime pack. |
-| WasmThreadPoolSize | unset | Sets the Emscripten thread pool size when threads are enabled. |
-| WasmEnableSignExt | true | Enables sign-extension ops in wasm-opt. |
-| WasmEnableMutableGlobals | true | Enables mutable globals in wasm-opt. |
-| WasmEnableBulkMemory | true | Enables bulk memory ops in wasm-opt. |
-| WasmEnableNontrappingFloatToInt | true | Enables non-trapping float-to-int in wasm-opt. |
-| WasmEnableReferenceTypes | true | Enables reference types in wasm-opt. |
-| WasmEnableMultivalue | true | Enables multi-value results in wasm-opt. |
-| WasmEnableExtendedConst | true | Enables extended const expressions in wasm-opt. |
-| WasmEnableTailCall | true | Enables tail calls in wasm-opt. |
-| WasmEnableGC | true | Enables GC features in wasm-opt. |
+| `WasmEnableThreads` | required, `true` or `false` | selects the single thread mode |
 
-### Notes and limitations
-- The output is a side module with no JS/HTML or static web assets.
-- No runtime config or deps files are generated.
-- Managed trimming runs as part of the pipeline and expects a single managed assembly input.
-- At least one `UnmanagedCallersOnly` export is required.
+## Responsibility boundaries
 
-### Tooling used
-- Uses the installed wasm workload (wasm-tools + wasm-experimental).
-- Adds LLVM helper packages as private assets: `llvm.wasm-tools.*`, `llvm.objcopy`, `llvm.er`, `ilneg`, `nuxmux`.
+The SDK produces the artifacts and guarantees `SIDE_MODULE=1`. The owner's code, separately:
+
+1. calls `BuildWasmSideModule`;
+2. decides which results become resources;
+3. reads the wasm bytes from the resource;
+4. materializes them in a form accepted by `NativeLibrary.Load`;
+5. registers the AOT information of the loaded module;
+6. loads the matching managed image.
+
+This SDK does not produce JS/HTML, boot config, or static web assets.

@@ -10,6 +10,10 @@ on:
         description: Artifact name from CI
         required: true
         type: string
+      version-file:
+        description: Version file path from repository root
+        required: true
+        type: string
       branch:
         description: Branch to publish from
         required: false
@@ -57,6 +61,7 @@ jobs:
       branch: ${{ inputs.branch }}
       run-id: ${{ needs.ci.outputs.run-id }}
       artifact-name: ${{ inputs.artifact-name }}
+      version-file: ${{ inputs.version-file }}
       tag-prefix: ${{ inputs.tag-prefix }}
       generate-notes: ${{ inputs.generate-notes }}
       allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
@@ -69,6 +74,7 @@ jobs:
       branch: ${{ inputs.branch }}
       run-id: ${{ needs.ci.outputs.run-id }}
       artifact-name: ${{ inputs.artifact-name }}
+      version-file: ${{ inputs.version-file }}
       allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
     secrets: inherit
 
@@ -79,6 +85,7 @@ jobs:
       branch: ${{ inputs.branch }}
       run-id: ${{ needs.ci.outputs.run-id }}
       artifact-name: ${{ inputs.artifact-name }}
+      version-file: ${{ inputs.version-file }}
       source: ${{ inputs.nuget-source }}
       allow-version-mismatch: ${{ inputs.allow-version-mismatch }}
     secrets: inherit

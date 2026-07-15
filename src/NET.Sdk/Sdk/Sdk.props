@@ -6,22 +6,10 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
 <Project>
     <Import Project="Global.props"/>
     <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk"/>
-    
-    <ItemGroup>
-        <PackageReference Include="llvm.wasm-tools.$(SystemRuntimeIdentifier)" Version="19.*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
-        <PackageReference Include="llvm.er" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
-        <PackageReference Include="ilneg" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
-        <PackageReference Include="llvm.objcopy" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
-        <PackageReference Include="nuxmux" Version="*" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
-    </ItemGroup>
 
     <PropertyGroup>
-        <!--<WasmEmCacheDir></WasmEmCacheDir>-->
-        <!--<WasmThreadPoolSize></WasmThreadPoolSize>-->
-        <!--<WasmEnableVerbose></WasmEnableVerbose>-->
         <WasmExceptionHandlingMode Condition="'$(WasmExceptionHandlingMode)' == ''">wasm</WasmExceptionHandlingMode>
         <WasmEnableSIMD Condition="'$(WasmEnableSIMD)' == ''">true</WasmEnableSIMD>
-        <WasmEnableThreads Condition="'$(WasmEnableThreads)' == ''">true</WasmEnableThreads>
         <WasmEnableSignExt Condition="'$(WasmEnableSignExt)' == ''">true</WasmEnableSignExt>
         <WasmEnableMutableGlobals Condition="'$(WasmEnableMutableGlobals)' == ''">true</WasmEnableMutableGlobals>
         <WasmEnableBulkMemory Condition="'$(WasmEnableBulkMemory)' == ''">true</WasmEnableBulkMemory>
@@ -34,10 +22,6 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
     </PropertyGroup>
 
     <PropertyGroup>
-        <_ItexoftPathSeparator Condition="$([MSBuild]::IsOSPlatform('windows'))">;</_ItexoftPathSeparator>
-        <_ItexoftPathSeparator Condition="!$([MSBuild]::IsOSPlatform('windows'))">:</_ItexoftPathSeparator>
         <_ItexoftExeExt Condition="$([MSBuild]::IsOSPlatform('windows'))">.exe</_ItexoftExeExt>
-        <_ItexoftExeExt Condition="'$(_ItexoftExeExt)' == ''"></_ItexoftExeExt>
-        <ObjCopyName>$([MSBuild]::NormalizePath($(Pkgllvm_objcopy), 'runtimes', '$(SystemRuntimeIdentifier)', 'native', 'bin', 'llvm-objcopy$(_ItexoftExeExt)'))</ObjCopyName>
     </PropertyGroup>
 </Project>

@@ -6,17 +6,45 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
 <Project>
     <Import Project="Global.targets"/>
 
-    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.BlazorWebAssembly"/>
+    <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+        <RunAOTCompilation>true</RunAOTCompilation>
+    </PropertyGroup>
 
     <PropertyGroup>
-        <ItexoftRuntimeWasmPackageVersion Condition="'$(ItexoftRuntimeWasmPackageVersion)' == ''">$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)', 2)).*</ItexoftRuntimeWasmPackageVersion>
+        <_ItexoftRuntimeWasmPackageVersion Condition="'$(_ItexoftRuntimeWasmPackageVersion)' == ''">$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)', 2)).*</_ItexoftRuntimeWasmPackageVersion>
+        <WasmMainModuleLevel Condition="'$(WasmMainModuleLevel)' == ''">1</WasmMainModuleLevel>
+        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'auto' or '$(WasmMainModuleLevel)' == 'main'">1</_ItexoftWasmMainModuleLevelValue>
+        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'dce'">2</_ItexoftWasmMainModuleLevelValue>
+        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'off'">0</_ItexoftWasmMainModuleLevelValue>
+        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == '0' or '$(WasmMainModuleLevel)' == '1' or '$(WasmMainModuleLevel)' == '2'">$(WasmMainModuleLevel)</_ItexoftWasmMainModuleLevelValue>
+        <_ItexoftWasmDynamicLinkingEnabled Condition="'$(_ItexoftWasmMainModuleLevelValue)' == '1' or '$(_ItexoftWasmMainModuleLevelValue)' == '2'">true</_ItexoftWasmDynamicLinkingEnabled>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Itexoft.dotnet.runtime.wasm" Version="$(ItexoftRuntimeWasmPackageVersion)" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
+        <PackageReference Include="Itexoft.dotnet.runtime.wasm" Version="$(_ItexoftRuntimeWasmPackageVersion)" PrivateAssets="all" ExcludeAssets="runtime;native" GeneratePathProperty="true"/>
     </ItemGroup>
 
-    <Import Project="Wasm.targets" Condition="$([System.String]::Copy('$(TargetFramework)').Contains('-browser'))"/>
-    <Import Project="ItexoftPInvokeInteropScanFix.targets"/>
+    <!--
+        Input: the resolved runtime package, managed TFM, thread mode, and main-module level.
+        Output: one deterministic child of IntermediateOutputPath for that exact combination.
+        Changed state: all runtime-dependent intermediate files are written under that child.
+        Correctness means changing any input cannot reuse linked assemblies or WebCIL from another combination.
+    -->
+    <PropertyGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(IsBrowserWasm)' == 'true'">
+        <_ItexoftRuntimeWasmPackageRoot>$(PkgItexoft_dotnet_runtime_wasm)</_ItexoftRuntimeWasmPackageRoot>
+        <_ItexoftRuntimeWasmThreadMode Condition="'$(WasmEnableThreads)' == 'true'">multithread</_ItexoftRuntimeWasmThreadMode>
+        <_ItexoftRuntimeWasmThreadMode Condition="'$(WasmEnableThreads)' == 'false'">singlethread</_ItexoftRuntimeWasmThreadMode>
+        <_ItexoftRuntimeWasmLibTfm Condition="'$(_ItexoftRuntimeWasmLibTfm)' == ''">net$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)', 2))</_ItexoftRuntimeWasmLibTfm>
+        <_ItexoftRuntimeWasmNativeVariantDir Condition="'$(_ItexoftRuntimeWasmPackageRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmPackageRoot)', 'runtimes', '$(BrowserWasmRuntimeIdentifier)', 'native', '$(_ItexoftRuntimeWasmThreadMode)', 'mm$(_ItexoftWasmMainModuleLevelValue)'))</_ItexoftRuntimeWasmNativeVariantDir>
+        <_ItexoftRuntimeWasmManagedVariantDir Condition="'$(_ItexoftRuntimeWasmPackageRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmPackageRoot)', 'runtimes', '$(BrowserWasmRuntimeIdentifier)', 'lib', '$(_ItexoftRuntimeWasmLibTfm)', '$(_ItexoftRuntimeWasmThreadMode)'))</_ItexoftRuntimeWasmManagedVariantDir>
+        <_ItexoftRuntimeWasmVariantIdentity Condition="'$(_ItexoftRuntimeWasmManagedVariantDir)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmManagedVariantDir)', 'mm$(_ItexoftWasmMainModuleLevelValue)'))</_ItexoftRuntimeWasmVariantIdentity>
+        <_ItexoftRuntimeWasmIntermediateKey Condition="'$(_ItexoftRuntimeWasmVariantIdentity)' != ''">$([MSBuild]::StableStringHash('$(_ItexoftRuntimeWasmVariantIdentity)', 'Sha256'))</_ItexoftRuntimeWasmIntermediateKey>
+        <_ItexoftRuntimeWasmIntermediateBase Condition="'$(_ItexoftRuntimeWasmIntermediateKey)' != ''">$([MSBuild]::NormalizeDirectory('$(BaseIntermediateOutputPath)', '$(Configuration)'))</_ItexoftRuntimeWasmIntermediateBase>
+        <IntermediateOutputPath Condition="'$(_ItexoftRuntimeWasmIntermediateKey)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmIntermediateBase)', '$(_ItexoftRuntimeWasmIntermediateKey)'))</IntermediateOutputPath>
+    </PropertyGroup>
+
+    <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.BlazorWebAssembly"/>
+
+    <Import Project="Wasm.targets" Condition="'$(IsBrowserWasm)' == 'true'"/>
     <Import Project="NativeAot.targets"/>
 </Project>

@@ -11,12 +11,11 @@ This Source Code Form is "Incompatible With Secondary Licenses", as defined by t
         <_RuntimeIdentifierPlatform Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierPlatform)' == ''">unknown</_RuntimeIdentifierPlatform>
         <_RuntimeIdentifierArch Condition="'$(SystemRuntimeIdentifier)' == '' and '$(_RuntimeIdentifierArch)' == ''">$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</_RuntimeIdentifierArch>
         <SystemRuntimeIdentifier Condition="'$(SystemRuntimeIdentifier)' == ''">$(_RuntimeIdentifierPlatform)-$(_RuntimeIdentifierArch)</SystemRuntimeIdentifier>
-        <_ItexoftWasmRid>browser-wasm</_ItexoftWasmRid>
-        <_ItexoftMachineName>$([System.Environment]::MachineName)</_ItexoftMachineName>
+        <BrowserWasmRuntimeIdentifier>browser-wasm</BrowserWasmRuntimeIdentifier>
     </PropertyGroup>
 
     <PropertyGroup>
-        <MSBuildProjectExtensionsPath>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', 'obj', '$(MSBuildProjectName)-$(SystemRuntimeIdentifier)-$(_ItexoftMachineName)'))$([System.IO.Path]::DirectorySeparatorChar)</MSBuildProjectExtensionsPath>
+        <MSBuildProjectExtensionsPath>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', '$(MSBuildProjectName)-$(SystemRuntimeIdentifier)-$([System.Environment]::MachineName)'))</MSBuildProjectExtensionsPath>
         <BaseIntermediateOutputPath>$(MSBuildProjectExtensionsPath)</BaseIntermediateOutputPath>
         <RestoreOutputPath>$(MSBuildProjectExtensionsPath)</RestoreOutputPath>
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>

@@ -1,544 +1,184 @@
 <Project>
-    <PropertyGroup>
-        <WasmMainModuleLevel Condition="'$(WasmMainModuleLevel)' == ''">auto</WasmMainModuleLevel>
-        <WasmEnableDlopenExports Condition="'$(WasmEnableDlopenExports)' == ''">auto</WasmEnableDlopenExports>
-        <WasmEnableDynamicLinkingLoader Condition="'$(WasmEnableDynamicLinkingLoader)' == ''">auto</WasmEnableDynamicLinkingLoader>
-
-        <_ItexoftWasmDynamicLinkingLoaderFile>$([MSBuild]::NormalizePath($(MSBuildThisFileDirectory), 'js', 'itexoft.wasm-side-module.js'))</_ItexoftWasmDynamicLinkingLoaderFile>
-        <_ItexoftWasmDynamicLinkingLoaderBootstrapFile>$([MSBuild]::NormalizePath($(MSBuildThisFileDirectory), 'js', 'itexoft.wasm-side-module.bootstrap.js'))</_ItexoftWasmDynamicLinkingLoaderBootstrapFile>
-        <_ItexoftWasmShimNativeFile>$([MSBuild]::NormalizePath($(MSBuildThisFileDirectory), 'native', 'itexoft.wasm-shim.c'))</_ItexoftWasmShimNativeFile>
-        <_ItexoftWasmRuntimeAssetsLocation Condition="'$(_ItexoftWasmRuntimeAssetsLocation)' == ''">$(WasmRuntimeAssetsLocation)</_ItexoftWasmRuntimeAssetsLocation>
-        <_ItexoftWasmRuntimeAssetsLocation Condition="'$(_ItexoftWasmRuntimeAssetsLocation)' == ''">_framework</_ItexoftWasmRuntimeAssetsLocation>
-        <_ItexoftWasmDynamicLinkingLoaderRelativePath>$([System.IO.Path]::Combine('$(_ItexoftWasmRuntimeAssetsLocation)', 'itexoft.wasm-side-module.js'))</_ItexoftWasmDynamicLinkingLoaderRelativePath>
-        <_ItexoftWasmDynamicLinkingLoaderUrl Condition="'$(_ItexoftWasmDynamicLinkingLoaderUrl)' == ''">./$([System.String]::Copy('$(_ItexoftWasmDynamicLinkingLoaderRelativePath)').Replace('\\','/'))</_ItexoftWasmDynamicLinkingLoaderUrl>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <GenerateBuildWasmBootJsonDependsOn>
-            $(GenerateBuildWasmBootJsonDependsOn);
-            _ItexoftAddWasmSideModuleJsStaticWebAsset;
-            _ItexoftGenerateBootExtensionJson;
-        </GenerateBuildWasmBootJsonDependsOn>
-        <GeneratePublishWasmBootJsonDependsOn>
-            $(GeneratePublishWasmBootJsonDependsOn);
-            _ItexoftAddWasmSideModuleJsStaticWebAsset;
-            _ItexoftGenerateBootExtensionJson;
-        </GeneratePublishWasmBootJsonDependsOn>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <GenerateComputedBuildStaticWebAssetsDependsOn>
-            $(GenerateComputedBuildStaticWebAssetsDependsOn);
-            _ItexoftAddNativeWasmStaticWebAssets
-        </GenerateComputedBuildStaticWebAssetsDependsOn>
-        <GenerateComputedPublishStaticWebAssetsDependsOn>
-            $(GenerateComputedPublishStaticWebAssetsDependsOn);
-            _ItexoftAddNativeWasmStaticWebAssets
-        </GenerateComputedPublishStaticWebAssetsDependsOn>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <_ItexoftNativeWasmCount>@(NativeWasmFileReference->Count())</_ItexoftNativeWasmCount>
-        <_ItexoftNativeWasmCount Condition="'$(_ItexoftNativeWasmCount)' == ''">0</_ItexoftNativeWasmCount>
-        <_ItexoftHasNativeWasm Condition="'$(_ItexoftNativeWasmCount)' != '0'">true</_ItexoftHasNativeWasm>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'@(NativeWasmFileReference)' != ''">
-        <NativeWasmFileReference Update="@(NativeWasmFileReference)">
-            <_ItexoftAutoLoadNormalized>$([System.String]::Copy('%(NativeWasmFileReference.AutoLoad)').Trim().ToLowerInvariant())</_ItexoftAutoLoadNormalized>
-        </NativeWasmFileReference>
+    <ItemGroup Condition="'$(WasmProfilers)' != ''">
+        <_ItexoftWasmProfiler Include="$(WasmProfilers)"/>
+        <_ItexoftWasmProfilerAot Include="@(_ItexoftWasmProfiler->WithMetadataValue('Identity','aot'))"/>
+        <_ItexoftWasmProfilerBrowser Include="@(_ItexoftWasmProfiler->WithMetadataValue('Identity','browser'))"/>
+        <_ItexoftWasmProfilerLog Include="@(_ItexoftWasmProfiler->WithMetadataValue('Identity','log'))"/>
     </ItemGroup>
 
-    <PropertyGroup Condition="'$(_ItexoftHasNativeWasm)' == 'true' and '$(Configuration)' == 'Debug'">
-        <!-- TODO: Keep Debug native build forced when NativeWasmFileReference is present. -->
+    <PropertyGroup>
+        <_ItexoftWasmProfilerAotCount>@(_ItexoftWasmProfilerAot->Count())</_ItexoftWasmProfilerAotCount>
+        <_ItexoftWasmProfilerBrowserCount>@(_ItexoftWasmProfilerBrowser->Count())</_ItexoftWasmProfilerBrowserCount>
+        <_ItexoftWasmProfilerLogCount>@(_ItexoftWasmProfilerLog->Count())</_ItexoftWasmProfilerLogCount>
+    </PropertyGroup>
+
+    <Target Name="ItexoftValidateWasmEnableThreads"
+            BeforeTargets="AssignProjectConfiguration;ItexoftResolveRuntimeWasmPackageLayout">
+        <Error Condition="'$(WasmEnableThreads)' != 'true' and '$(WasmEnableThreads)' != 'false'"
+               Text="WasmEnableThreads must be explicitly set to true or false."/>
+        <Error Condition="'$(_ItexoftWasmMainModuleLevelValue)' == ''"
+               Text="WasmMainModuleLevel must be auto, main, dce, off, 0, 1, or 2."/>
+        <Error Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(WasmEnableThreads)' == 'true' and !Exists('$(_ItexoftEmscriptenDylinkJsFixedFile)')"
+               Text="The pthread-safe Emscripten dynamic-linking library is missing: $(_ItexoftEmscriptenDylinkJsFixedFile)"/>
+    </Target>
+
+    <!--
+        Input: managed assemblies loaded by a host that accepts dynamically linked AOT modules.
+        Output: the same assembly files copied through ILLink without rewriting their identities.
+        Changed state: each assembly's ILLink action becomes copy.
+        Correctness means every published assembly keeps the module identifier (MVID) recorded
+        while compiling the side module.
+    -->
+    <Target Name="PreserveWasmDynamicLinkingAssemblyIdentity"
+            AfterTargets="PrepareForILLink"
+            BeforeTargets="_RunILLink"
+            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(PublishTrimmed)' == 'true'">
+        <ItemGroup>
+            <ManagedAssemblyToLink>
+                <TrimMode>copy</TrimMode>
+            </ManagedAssemblyToLink>
+        </ItemGroup>
+    </Target>
+
+    <PropertyGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
         <WasmBuildNative>true</WasmBuildNative>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(WasmMainModuleLevel)' == 'auto' and '$(_ItexoftHasNativeWasm)' == 'true'">
-        <WasmMainModuleLevel>dce</WasmMainModuleLevel>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(WasmMainModuleLevel)' == 'auto'">
-        <WasmMainModuleLevel>off</WasmMainModuleLevel>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'main'">1</_ItexoftWasmMainModuleLevelValue>
-        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'dce'">2</_ItexoftWasmMainModuleLevelValue>
-        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == 'off'">0</_ItexoftWasmMainModuleLevelValue>
-        <_ItexoftWasmMainModuleLevelValue Condition="'$(WasmMainModuleLevel)' == '0' or '$(WasmMainModuleLevel)' == '1' or '$(WasmMainModuleLevel)' == '2'">$(WasmMainModuleLevel)</_ItexoftWasmMainModuleLevelValue>
-        <_ItexoftWasmMainModuleLevelValue Condition="'$(_ItexoftWasmMainModuleLevelValue)' == ''">0</_ItexoftWasmMainModuleLevelValue>
-        <_ItexoftWasmDynamicLinkingEnabled Condition="'$(_ItexoftWasmMainModuleLevelValue)' != '0'">true</_ItexoftWasmDynamicLinkingEnabled>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(InvariantGlobalization)' == 'true'">
-        <_MonoRuntimeComponentDontLink Include="libicudata.a"/>
-        <_MonoRuntimeComponentDontLink Include="libicui18n.a"/>
-        <_MonoRuntimeComponentDontLink Include="libicuuc.a"/>
-        <_MonoRuntimeComponentDontLink Include="libSystem.Globalization.Native.a"/>
-    </ItemGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
-        <_MonoRuntimeComponentDontLink Include="libmono-profiler-aot.a" Condition="!$([System.String]::Copy('$(WasmProfilers)').Contains('aot'))"/>
-        <_MonoRuntimeComponentDontLink Include="libmono-profiler-browser.a" Condition="!$([System.String]::Copy('$(WasmProfilers)').Contains('browser'))"/>
-        <_MonoRuntimeComponentDontLink Include="libmono-profiler-log.a" Condition="!$([System.String]::Copy('$(WasmProfilers)').Contains('log'))"/>
-    </ItemGroup>
-
-    <PropertyGroup Condition="'$(WasmEnableDlopenExports)' == 'auto'">
-        <WasmEnableDlopenExports Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">true</WasmEnableDlopenExports>
-        <WasmEnableDlopenExports Condition="'$(WasmEnableDlopenExports)' == 'auto'">false</WasmEnableDlopenExports>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(WasmEnableDynamicLinkingLoader)' == '' or '$(WasmEnableDynamicLinkingLoader)' == 'auto'">
-        <WasmEnableDynamicLinkingLoader Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">true</WasmEnableDynamicLinkingLoader>
-        <WasmEnableDynamicLinkingLoader Condition="'$(WasmEnableDynamicLinkingLoader)' == '' or '$(WasmEnableDynamicLinkingLoader)' == 'auto'">false</WasmEnableDynamicLinkingLoader>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
-        <EmccExportedRuntimeMethod Include="loadDynamicLibrary"/>
-    </ItemGroup>
-
-    <ItemGroup Condition="'$(_ItexoftHasNativeWasm)' == 'true' and Exists('$(_ItexoftWasmShimNativeFile)')">
-        <NativeFileReference Include="$(_ItexoftWasmShimNativeFile)"/>
-    </ItemGroup>
-
-    <PropertyGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and ('$(TargetPlatformIdentifier)' == 'browser' or '$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)')">
-        <_ItexoftWasmForDir Condition="'$(WasmBuildingForNestedPublish)' == 'true'">for-publish</_ItexoftWasmForDir>
-        <_ItexoftWasmForDir Condition="'$(_ItexoftWasmForDir)' == ''">for-build</_ItexoftWasmForDir>
-        <_ItexoftWasmIntermediateDir>$([MSBuild]::NormalizeDirectory($(IntermediateOutputPath), 'wasm', '$(_ItexoftWasmForDir)'))</_ItexoftWasmIntermediateDir>
-        <_ItexoftEmccLinkRspPath>$([MSBuild]::NormalizePath($(_ItexoftWasmIntermediateDir), 'emcc-link.rsp'))</_ItexoftEmccLinkRspPath>
-
-        <_ItexoftEmccDynamicLinkFlags>-s MAIN_MODULE=$(_ItexoftWasmMainModuleLevelValue)</_ItexoftEmccDynamicLinkFlags>
-        <_ItexoftEmccDlopenExports Condition="'$(WasmEnableDlopenExports)' == 'true'">-Wl,--export-if-defined=dlopen -Wl,--export-if-defined=dlsym -Wl,--export-if-defined=dlclose -Wl,--export-if-defined=dlerror -Wl,--export-if-defined=emscripten_dlopen -Wl,--export-if-defined=emscripten_dlsym</_ItexoftEmccDlopenExports>
-        <_ItexoftEmscriptenDylinkJs Condition="'$(_ItexoftEmscriptenDylinkJs)' == '' and '$(EmscriptenUpstreamEmscriptenPath)' != ''">$([MSBuild]::NormalizePath($(EmscriptenUpstreamEmscriptenPath), 'src', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJs>
+        <ResolvePackageDependenciesForBuildDependsOn>
+            $(ResolvePackageDependenciesForBuildDependsOn);
+            ItexoftRewriteRuntimePackNativeAssets;
+            ItexoftRewriteRuntimePackManagedAssets
+        </ResolvePackageDependenciesForBuildDependsOn>
+        <PrepareInputsForWasmBuildDependsOn>
+            ItexoftUseRuntimeWasmNativeVariant;
+            $(PrepareInputsForWasmBuildDependsOn)
+        </PrepareInputsForWasmBuildDependsOn>
+        <WasmGenerateAppBundleDependsOn>
+            ItexoftUseRuntimeWasmNativeVariant;
+            $(WasmGenerateAppBundleDependsOn)
+        </WasmGenerateAppBundleDependsOn>
+        <!-- Input: a multithreaded main-module link. Output: the pinned Emscripten dynamic-linking
+             library whose side-module GOT.func values use per-thread-consistent table indices.
+             Link inputs change; correctness means reverse P/Invoke reaches the same function-table
+             slot on every pthread. -->
+        <_ItexoftEmscriptenDylinkJsFixedFile>$([MSBuild]::NormalizePath($(MSBuildThisFileDirectory), 'js', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJsFixedFile>
         <WasmCachePath Condition="'$(WasmCachePath)' == ''">$([MSBuild]::NormalizeDirectory($(BaseIntermediateOutputPath), 'emscripten-cache'))</WasmCachePath>
         <WasmCachePath Condition="'$(WasmCachePath)' == '$(EmscriptenCacheSdkCacheDir)'">$([MSBuild]::NormalizeDirectory($(BaseIntermediateOutputPath), 'emscripten-cache'))</WasmCachePath>
         <EmccExtraBitcodeCompilationFlags>$(EmccExtraBitcodeCompilationFlags) -fPIC</EmccExtraBitcodeCompilationFlags>
-        <EmccExtraCFlags>$(EmccExtraCFlags) -fPIC</EmccExtraCFlags>
+        <EmccExtraCFlags>$(EmccExtraCFlags) -fPIC -DWASM_SUPPORTS_DLOPEN=1</EmccExtraCFlags>
     </PropertyGroup>
+
+    <ItemGroup Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
+        <_MonoRuntimeComponentDontLink Include="libicudata.a;libicui18n.a;libicuuc.a;libSystem.Globalization.Native.a" Condition="'$(InvariantGlobalization)' == 'true'"/>
+        <_MonoRuntimeComponentDontLink Include="libmono-profiler-aot.a" Condition="'$(_ItexoftWasmProfilerAotCount)' == '0'"/>
+        <_MonoRuntimeComponentDontLink Include="libmono-profiler-browser.a" Condition="'$(_ItexoftWasmProfilerBrowserCount)' == '0'"/>
+        <_MonoRuntimeComponentDontLink Include="libmono-profiler-log.a" Condition="'$(_ItexoftWasmProfilerLogCount)' == '0'"/>
+        <LinkerArg Include="-s MAIN_MODULE=$(_ItexoftWasmMainModuleLevelValue)"/>
+        <LinkerArg Include="-s NO_EXIT_RUNTIME=1"/>
+        <LinkerArg Include="--js-library &quot;$(_ItexoftEmscriptenDylinkJsFixedFile)&quot;" Condition="'$(WasmEnableThreads)' == 'true'"/>
+    </ItemGroup>
 
     <Target Name="ItexoftResolveRuntimeWasmPackageLayout"
-            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(TargetPlatformIdentifier)' == 'browser'">
-        <PropertyGroup>
-            <_ItexoftRuntimeWasmPackageRoot>$(PkgItexoft_dotnet_runtime_wasm)</_ItexoftRuntimeWasmPackageRoot>
-            <_ItexoftRuntimeWasmThreadMode Condition="'$(WasmEnableThreads)' == 'true'">multithread</_ItexoftRuntimeWasmThreadMode>
-            <_ItexoftRuntimeWasmThreadMode Condition="'$(_ItexoftRuntimeWasmThreadMode)' == ''">singlethread</_ItexoftRuntimeWasmThreadMode>
-            <_ItexoftRuntimeWasmMainModuleDir Condition="'$(_ItexoftWasmMainModuleLevelValue)' == '1'">mm1</_ItexoftRuntimeWasmMainModuleDir>
-            <_ItexoftRuntimeWasmMainModuleDir Condition="'$(_ItexoftWasmMainModuleLevelValue)' == '2'">mm2</_ItexoftRuntimeWasmMainModuleDir>
-            <_ItexoftRuntimeWasmNativeVariantDir Condition="'$(_ItexoftRuntimeWasmPackageRoot)' != '' and '$(_ItexoftRuntimeWasmMainModuleDir)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmPackageRoot)', 'runtimes', '$(_ItexoftWasmRid)', 'native', '$(_ItexoftRuntimeWasmThreadMode)', '$(_ItexoftRuntimeWasmMainModuleDir)'))</_ItexoftRuntimeWasmNativeVariantDir>
-            <_ItexoftRuntimeWasmLibDir Condition="'$(_ItexoftRuntimeWasmPackageRoot)' != ''">$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmPackageRoot)', 'runtimes', '$(_ItexoftWasmRid)', 'lib', 'net10.0'))</_ItexoftRuntimeWasmLibDir>
-        </PropertyGroup>
-
+            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
         <Error Condition="'$(_ItexoftRuntimeWasmPackageRoot)' == ''"
-               Text="Itexoft.dotnet.runtime.wasm package path is not resolved. Restore the package before building browser-wasm dynamic linking."/>
-        <Error Condition="'$(_ItexoftRuntimeWasmMainModuleDir)' == ''"
-               Text="Unsupported WasmMainModuleLevel=$(WasmMainModuleLevel). Dynamic linking requires WasmMainModuleLevel=main|1 or dce|2."/>
+               Text="Itexoft.dotnet.runtime.wasm package path is not resolved. Restore the package before building $(BrowserWasmRuntimeIdentifier) dynamic linking."/>
         <Error Condition="'$(_ItexoftRuntimeWasmNativeVariantDir)' == '' or !Exists('$(_ItexoftRuntimeWasmNativeVariantDir)')"
                Text="Itexoft.dotnet.runtime.wasm native variant directory is missing: $(_ItexoftRuntimeWasmNativeVariantDir)"/>
-        <Error Condition="'$(_ItexoftRuntimeWasmLibDir)' == '' or !Exists('$(_ItexoftRuntimeWasmLibDir)')"
-               Text="Itexoft.dotnet.runtime.wasm managed runtime directory is missing: $(_ItexoftRuntimeWasmLibDir)"/>
+        <Error Condition="'$(_ItexoftRuntimeWasmManagedVariantDir)' == '' or !Exists('$(_ItexoftRuntimeWasmManagedVariantDir)')"
+               Text="Itexoft.dotnet.runtime.wasm managed variant directory is missing: $(_ItexoftRuntimeWasmManagedVariantDir)"/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmNativeVariantDir), &quot;dotnet.js&quot;))')"
+               Text="Itexoft.dotnet.runtime.wasm is missing dotnet.js in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmNativeVariantDir), &quot;dotnet.runtime.js&quot;))')"
+               Text="Itexoft.dotnet.runtime.wasm is missing dotnet.runtime.js in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmNativeVariantDir), &quot;include&quot;, &quot;mono-2.0&quot;, &quot;mono&quot;, &quot;metadata&quot;, &quot;appdomain.h&quot;))')"
+               Text="Itexoft.dotnet.runtime.wasm is missing include/mono-2.0/mono/metadata/appdomain.h in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmNativeVariantDir), &quot;include&quot;, &quot;wasm&quot;, &quot;pinvoke.h&quot;))')"
+               Text="Itexoft.dotnet.runtime.wasm is missing include/wasm/pinvoke.h in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
+        <Error Condition="!Exists('$([MSBuild]::NormalizePath($(_ItexoftRuntimeWasmNativeVariantDir), &quot;src&quot;, &quot;emcc-link.rsp&quot;))')"
+               Text="Itexoft.dotnet.runtime.wasm is missing src/emcc-link.rsp in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
     </Target>
 
-    <Target Name="ItexoftReplaceRuntimeWasmLinkLibraries"
+    <Target Name="ItexoftUseRuntimeWasmNativeVariant"
+            DependsOnTargets="_InitializeCommonProperties;ItexoftResolveRuntimeWasmPackageLayout"
+            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
+        <PropertyGroup>
+            <MicrosoftNetCoreAppRuntimePackRidNativeDir>$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmNativeVariantDir)'))</MicrosoftNetCoreAppRuntimePackRidNativeDir>
+            <_WasmRuntimePackIncludeDir>$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmNativeVariantDir)', 'include'))</_WasmRuntimePackIncludeDir>
+            <_WasmRuntimePackSrcDir>$([MSBuild]::NormalizeDirectory('$(_ItexoftRuntimeWasmNativeVariantDir)', 'src'))</_WasmRuntimePackSrcDir>
+        </PropertyGroup>
+    </Target>
+
+    <Target Name="ItexoftRewriteRuntimePackNativeAssets"
             DependsOnTargets="ItexoftResolveRuntimeWasmPackageLayout"
-            AfterTargets="_BrowserWasmWriteRspForLinking"
-            BeforeTargets="_WasmWriteRspForLinking"
-            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(TargetPlatformIdentifier)' == 'browser'">
+            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
         <ItemGroup>
-            <_ItexoftRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)*.a"/>
-            <_ItexoftRuntimeWasmNativeArchive Remove="@(_MonoRuntimeComponentDontLink->'$(_ItexoftRuntimeWasmNativeVariantDir)%(Identity)')"/>
-            <_ItexoftRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmEHLib)" Condition="'$(_WasmEHLib)' != ''"/>
-            <_ItexoftRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmSIMDLib)" Condition="'$(_WasmSIMDLib)' != ''"/>
-            <_ItexoftRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmEHLib)" Condition="'$(_WasmEHLib)' != ''"/>
-            <_ItexoftRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmSIMDLib)" Condition="'$(_WasmSIMDLib)' != ''"/>
-            <_ItexoftRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmEHLibToExclude)"/>
-            <_ItexoftRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmSIMDLibToExclude)"/>
+            <_ItexoftRuntimePackNativeAssetCandidate Include="@(RuntimePackAsset)"
+                                                    Condition="'%(RuntimePackAsset.AssetType)' == 'native'">
+                <_ItexoftRuntimePackReplacementPath>$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', '%(RuntimePackAsset.Filename)%(RuntimePackAsset.Extension)'))</_ItexoftRuntimePackReplacementPath>
+            </_ItexoftRuntimePackNativeAssetCandidate>
+            <_ItexoftRuntimePackNativeAssetToReplace Include="@(_ItexoftRuntimePackNativeAssetCandidate)"
+                                                     Condition="Exists('%(_ItexoftRuntimePackNativeAssetCandidate._ItexoftRuntimePackReplacementPath)')"/>
+            <_ItexoftRuntimePackNativeAssetReplacement Include="@(_ItexoftRuntimePackNativeAssetToReplace->'%(_ItexoftRuntimePackReplacementPath)')">
+                <AssetType>%(_ItexoftRuntimePackNativeAssetToReplace.AssetType)</AssetType>
+                <CopyLocal>%(_ItexoftRuntimePackNativeAssetToReplace.CopyLocal)</CopyLocal>
+                <DestinationSubDirectory>%(_ItexoftRuntimePackNativeAssetToReplace.DestinationSubDirectory)</DestinationSubDirectory>
+                <DestinationSubPath>%(_ItexoftRuntimePackNativeAssetToReplace.DestinationSubPath)</DestinationSubPath>
+                <NuGetPackageId>%(_ItexoftRuntimePackNativeAssetToReplace.NuGetPackageId)</NuGetPackageId>
+                <NuGetPackageVersion>%(_ItexoftRuntimePackNativeAssetToReplace.NuGetPackageVersion)</NuGetPackageVersion>
+                <OriginalItemSpec>%(_ItexoftRuntimePackNativeAssetToReplace.OriginalItemSpec)</OriginalItemSpec>
+                <PathInPackage>%(_ItexoftRuntimePackNativeAssetToReplace.PathInPackage)</PathInPackage>
+                <RelativePath>%(_ItexoftRuntimePackNativeAssetToReplace.RelativePath)</RelativePath>
+                <RuntimePackAlwaysCopyLocal>%(_ItexoftRuntimePackNativeAssetToReplace.RuntimePackAlwaysCopyLocal)</RuntimePackAlwaysCopyLocal>
+                <Culture>%(_ItexoftRuntimePackNativeAssetToReplace.Culture)</Culture>
+            </_ItexoftRuntimePackNativeAssetReplacement>
         </ItemGroup>
 
-        <RemoveDuplicates Inputs="@(_ItexoftRuntimeWasmNativeArchive)">
-            <Output TaskParameter="Filtered" ItemName="_ItexoftRuntimeWasmDistinctNativeArchive"/>
-        </RemoveDuplicates>
-
-        <Error Condition="'@(_ItexoftRuntimeWasmDistinctNativeArchive)' == ''"
-               Text="Itexoft.dotnet.runtime.wasm has no native archives in $(_ItexoftRuntimeWasmNativeVariantDir)."/>
-
         <ItemGroup>
-            <_WasmNativeFileForLinking Remove="$(MicrosoftNetCoreAppRuntimePackRidNativeDir)*.a"/>
-            <_WasmNativeFileForLinking Include="@(_ItexoftRuntimeWasmDistinctNativeArchive)"/>
+            <RuntimePackAsset Remove="@(_ItexoftRuntimePackNativeAssetToReplace)"/>
+            <RuntimePackAsset Include="@(_ItexoftRuntimePackNativeAssetReplacement)"/>
+
+            <ReferenceCopyLocalPaths Remove="@(_ItexoftRuntimePackNativeAssetToReplace)"/>
+            <ReferenceCopyLocalPaths Include="@(_ItexoftRuntimePackNativeAssetReplacement)"
+                                     Condition="'$(CopyLocalLockFileAssemblies)' == 'true' and ('$(SelfContained)' == 'true' or '%(_ItexoftRuntimePackNativeAssetReplacement.RuntimePackAlwaysCopyLocal)' == 'true') and '%(_ItexoftRuntimePackNativeAssetReplacement.AssetType)' != 'pgodata'"/>
         </ItemGroup>
     </Target>
 
-    <Target Name="ItexoftResolveRuntimeWasmAssets"
+    <!--
+        Input: managed assets from the selected Microsoft runtime pack.
+        Output: the same asset metadata pointing to the compatible managed runtime variant.
+        Changed state: RuntimePackAsset and ReferenceCopyLocalPaths before publish inputs are formed.
+        Correctness means ILLink and the browser bundle consume the assemblies used by side-module AOT.
+    -->
+    <Target Name="ItexoftRewriteRuntimePackManagedAssets"
             DependsOnTargets="ItexoftResolveRuntimeWasmPackageLayout"
-            BeforeTargets="_ResolveWasmOutputs"
-            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and '$(TargetPlatformIdentifier)' == 'browser'">
+            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true'">
+        <ItemGroup>
+            <_ItexoftRuntimePackManagedAssetCandidate Include="@(RuntimePackAsset)"
+                                                     Condition="'%(RuntimePackAsset.AssetType)' == 'runtime'">
+                <_ItexoftRuntimePackReplacementPath>$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmManagedVariantDir)', '%(RuntimePackAsset.Filename)%(RuntimePackAsset.Extension)'))</_ItexoftRuntimePackReplacementPath>
+            </_ItexoftRuntimePackManagedAssetCandidate>
+            <_ItexoftRuntimePackManagedAssetToReplace Include="@(_ItexoftRuntimePackManagedAssetCandidate)"
+                                                    Condition="Exists('%(_ItexoftRuntimePackManagedAssetCandidate._ItexoftRuntimePackReplacementPath)')"/>
+            <_ItexoftRuntimePackManagedAssetReplacement Include="@(_ItexoftRuntimePackManagedAssetToReplace->'%(_ItexoftRuntimePackReplacementPath)')">
+                <AssetType>%(_ItexoftRuntimePackManagedAssetToReplace.AssetType)</AssetType>
+                <CopyLocal>%(_ItexoftRuntimePackManagedAssetToReplace.CopyLocal)</CopyLocal>
+                <DestinationSubDirectory>%(_ItexoftRuntimePackManagedAssetToReplace.DestinationSubDirectory)</DestinationSubDirectory>
+                <DestinationSubPath>%(_ItexoftRuntimePackManagedAssetToReplace.DestinationSubPath)</DestinationSubPath>
+                <NuGetPackageId>%(_ItexoftRuntimePackManagedAssetToReplace.NuGetPackageId)</NuGetPackageId>
+                <NuGetPackageVersion>%(_ItexoftRuntimePackManagedAssetToReplace.NuGetPackageVersion)</NuGetPackageVersion>
+                <OriginalItemSpec>%(_ItexoftRuntimePackManagedAssetToReplace.OriginalItemSpec)</OriginalItemSpec>
+                <PathInPackage>%(_ItexoftRuntimePackManagedAssetToReplace.PathInPackage)</PathInPackage>
+                <RelativePath>%(_ItexoftRuntimePackManagedAssetToReplace.RelativePath)</RelativePath>
+                <RuntimePackAlwaysCopyLocal>%(_ItexoftRuntimePackManagedAssetToReplace.RuntimePackAlwaysCopyLocal)</RuntimePackAlwaysCopyLocal>
+                <Culture>%(_ItexoftRuntimePackManagedAssetToReplace.Culture)</Culture>
+            </_ItexoftRuntimePackManagedAssetReplacement>
+        </ItemGroup>
 
         <ItemGroup>
-            <_ItexoftRuntimeWasmRequiredNativeAsset Include="$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', 'dotnet.js'))"/>
-            <_ItexoftRuntimeWasmRequiredNativeAsset Include="$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', 'dotnet.native.js'))"/>
-            <_ItexoftRuntimeWasmRequiredNativeAsset Include="$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', 'dotnet.native.wasm'))"/>
-            <_ItexoftRuntimeWasmRequiredNativeAsset Include="$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', 'dotnet.runtime.js'))"/>
-            <_ItexoftRuntimeWasmRequiredNativeAsset Include="$([MSBuild]::NormalizePath('$(_ItexoftRuntimeWasmNativeVariantDir)', 'System.Private.CoreLib.dll'))"/>
-            <_ItexoftRuntimeWasmMissingNativeAsset Include="@(_ItexoftRuntimeWasmRequiredNativeAsset)" Condition="!Exists('%(Identity)')"/>
+            <RuntimePackAsset Remove="@(_ItexoftRuntimePackManagedAssetToReplace)"/>
+            <RuntimePackAsset Include="@(_ItexoftRuntimePackManagedAssetReplacement)"/>
+
+            <ReferenceCopyLocalPaths Remove="@(_ItexoftRuntimePackManagedAssetToReplace)"/>
+            <ReferenceCopyLocalPaths Include="@(_ItexoftRuntimePackManagedAssetReplacement)"
+                                     Condition="'$(CopyLocalLockFileAssemblies)' == 'true' and ('$(SelfContained)' == 'true' or '%(_ItexoftRuntimePackManagedAssetReplacement.RuntimePackAlwaysCopyLocal)' == 'true') and '%(_ItexoftRuntimePackManagedAssetReplacement.AssetType)' != 'pgodata'"/>
         </ItemGroup>
-
-        <Error Condition="'@(_ItexoftRuntimeWasmMissingNativeAsset)' != ''"
-               Text="Itexoft.dotnet.runtime.wasm is missing required native assets: @(_ItexoftRuntimeWasmMissingNativeAsset, ', ')"/>
-
-        <ItemGroup>
-            <_ItexoftRuntimeWasmManagedAsset Include="$(_ItexoftRuntimeWasmLibDir)*.dll"/>
-            <WasmNativeAsset Include="@(_ItexoftRuntimeWasmManagedAsset)"/>
-        </ItemGroup>
-    </Target>
-
-    <ItemGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)')">
-        <WasmNativeAsset Include="$(_ItexoftWasmDynamicLinkingLoaderFile)"/>
-    </ItemGroup>
-
-    <ItemGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)')">
-        <_ItexoftWasmExtraConfigModulesAfterRuntimeReady Include="@(WasmExtraConfig->WithMetadataValue('Identity','modulesAfterRuntimeReady'))"/>
-    </ItemGroup>
-
-    <PropertyGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)')">
-        <_ItexoftWasmModulesAfterRuntimeReadyExisting>@(_ItexoftWasmExtraConfigModulesAfterRuntimeReady->'%(Value)')</_ItexoftWasmModulesAfterRuntimeReadyExisting>
-
-        <_ItexoftWasmModulesAfterRuntimeReadyValue Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' == ''">[ &quot;$(_ItexoftWasmDynamicLinkingLoaderUrl)&quot; ]</_ItexoftWasmModulesAfterRuntimeReadyValue>
-        <_ItexoftWasmModulesAfterRuntimeReadyValue Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' != '' and $([System.String]::Copy('$(_ItexoftWasmModulesAfterRuntimeReadyExisting)').Contains('$(_ItexoftWasmDynamicLinkingLoaderUrl)'))">$(_ItexoftWasmModulesAfterRuntimeReadyExisting)</_ItexoftWasmModulesAfterRuntimeReadyValue>
-
-        <_ItexoftWasmModulesAfterRuntimeReadyTrimmed Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' != '' and '$(_ItexoftWasmModulesAfterRuntimeReadyValue)' == ''">$([System.String]::Copy('$(_ItexoftWasmModulesAfterRuntimeReadyExisting)').TrimEnd().TrimEnd(']'))</_ItexoftWasmModulesAfterRuntimeReadyTrimmed>
-        <_ItexoftWasmModulesAfterRuntimeReadyValue Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' != '' and '$(_ItexoftWasmModulesAfterRuntimeReadyValue)' == '' and $([System.String]::Copy('$(_ItexoftWasmModulesAfterRuntimeReadyTrimmed)').EndsWith('['))">$(_ItexoftWasmModulesAfterRuntimeReadyTrimmed)&quot;$(_ItexoftWasmDynamicLinkingLoaderUrl)&quot;]</_ItexoftWasmModulesAfterRuntimeReadyValue>
-        <_ItexoftWasmModulesAfterRuntimeReadyValue Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' != '' and '$(_ItexoftWasmModulesAfterRuntimeReadyValue)' == '' and !$([System.String]::Copy('$(_ItexoftWasmModulesAfterRuntimeReadyTrimmed)').EndsWith('['))">$(_ItexoftWasmModulesAfterRuntimeReadyTrimmed), &quot;$(_ItexoftWasmDynamicLinkingLoaderUrl)&quot;]</_ItexoftWasmModulesAfterRuntimeReadyValue>
-    </PropertyGroup>
-
-    <ItemGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)') and '$(_ItexoftWasmModulesAfterRuntimeReadyValue)' != ''">
-        <WasmExtraConfig Update="@(_ItexoftWasmExtraConfigModulesAfterRuntimeReady)">
-            <Value>$(_ItexoftWasmModulesAfterRuntimeReadyValue)</Value>
-        </WasmExtraConfig>
-        <WasmExtraConfig Include="modulesAfterRuntimeReady"
-                         Value="$(_ItexoftWasmModulesAfterRuntimeReadyValue)"
-                         Condition="'$(_ItexoftWasmModulesAfterRuntimeReadyExisting)' == ''"/>
-    </ItemGroup>
-
-    <ItemGroup Condition="'$(_ItexoftNativeWasmCount)' != '0'">
-        <_ItexoftWasmSideModuleName Include="@(NativeWasmFileReference)">
-            <Name>%(Filename)</Name>
-        </_ItexoftWasmSideModuleName>
-        <_ItexoftWasmSideModuleAutoLoad Include="@(NativeWasmFileReference->WithMetadataValue('_ItexoftAutoLoadNormalized','true'))">
-            <Name>%(Filename)</Name>
-        </_ItexoftWasmSideModuleAutoLoad>
-        <_ItexoftWasmSideModuleAutoLoad Include="@(NativeWasmFileReference->WithMetadataValue('_ItexoftAutoLoadNormalized',''))">
-            <Name>%(Filename)</Name>
-        </_ItexoftWasmSideModuleAutoLoad>
-        <_ItexoftWasmSideModulePath Include="@(NativeWasmFileReference)">
-            <Name>%(Filename)</Name>
-            <Path>$([System.String]::Copy($([System.IO.Path]::Combine('%(NativeWasmFileReference.PublishDir)', '%(Filename)%(Extension)'))).Replace('\\','/'))</Path>
-        </_ItexoftWasmSideModulePath>
-    </ItemGroup>
-
-    <ItemGroup>
-        <_ItexoftWasmExtraConfigSideModules Include="@(WasmExtraConfig->WithMetadataValue('Identity','itexoftWasmSideModules'))"/>
-        <_ItexoftWasmExtraConfigSideModulePaths Include="@(WasmExtraConfig->WithMetadataValue('Identity','itexoftWasmSideModulePaths'))"/>
-        <_ItexoftWasmExtraConfigSideModuleAutoLoad Include="@(WasmExtraConfig->WithMetadataValue('Identity','itexoftWasmSideModuleAutoLoad'))"/>
-    </ItemGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmSideModuleCount>@(_ItexoftWasmSideModuleName->Count())</_ItexoftWasmSideModuleCount>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmSideModulesExisting>@(_ItexoftWasmExtraConfigSideModules->'%(Value)')</_ItexoftWasmSideModulesExisting>
-        <_ItexoftWasmSideModulesJson>$([System.String]::Join('&quot;,&quot;', @(_ItexoftWasmSideModuleName->'%(Name)')))</_ItexoftWasmSideModulesJson>
-        <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' != ''">$(_ItexoftWasmSideModulesExisting)</_ItexoftWasmSideModulesValue>
-        <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' == '' and '$(_ItexoftWasmSideModulesJson)' != ''">[ &quot;$(_ItexoftWasmSideModulesJson)&quot; ]</_ItexoftWasmSideModulesValue>
-        <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' == '' and '$(_ItexoftWasmSideModulesJson)' == ''">[ ]</_ItexoftWasmSideModulesValue>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmSideModulesValue)' != ''">
-        <WasmExtraConfig Update="@(_ItexoftWasmExtraConfigSideModules)">
-            <Value>$(_ItexoftWasmSideModulesValue)</Value>
-        </WasmExtraConfig>
-        <WasmExtraConfig Include="itexoftWasmSideModules"
-                         Value="$(_ItexoftWasmSideModulesValue)"
-                         Condition="'$(_ItexoftWasmSideModulesExisting)' == ''"/>
-    </ItemGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmSideModulePathsExisting>@(_ItexoftWasmExtraConfigSideModulePaths->'%(Value)')</_ItexoftWasmSideModulePathsExisting>
-        <_ItexoftWasmSideModulePathsJson>$([System.String]::Join(',', @(_ItexoftWasmSideModulePath->'&quot;%(Name)&quot;:&quot;%(Path)&quot;')))</_ItexoftWasmSideModulePathsJson>
-        <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' != ''">$(_ItexoftWasmSideModulePathsExisting)</_ItexoftWasmSideModulePathsValue>
-        <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' == '' and '$(_ItexoftWasmSideModulePathsJson)' != ''">{ $(_ItexoftWasmSideModulePathsJson) }</_ItexoftWasmSideModulePathsValue>
-        <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' == '' and '$(_ItexoftWasmSideModulePathsJson)' == ''">{ }</_ItexoftWasmSideModulePathsValue>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmSideModulePathsValue)' != ''">
-        <WasmExtraConfig Update="@(_ItexoftWasmExtraConfigSideModulePaths)">
-            <Value>$(_ItexoftWasmSideModulePathsValue)</Value>
-        </WasmExtraConfig>
-        <WasmExtraConfig Include="itexoftWasmSideModulePaths"
-                         Value="$(_ItexoftWasmSideModulePathsValue)"
-                         Condition="'$(_ItexoftWasmSideModulePathsExisting)' == ''"/>
-    </ItemGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmSideModuleAutoLoadCount>@(_ItexoftWasmSideModuleAutoLoad->Count())</_ItexoftWasmSideModuleAutoLoadCount>
-        <_ItexoftWasmSideModuleAutoLoadCount Condition="'$(_ItexoftWasmSideModuleAutoLoadCount)' == ''">0</_ItexoftWasmSideModuleAutoLoadCount>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <_ItexoftWasmSideModuleAutoLoadExisting>@(_ItexoftWasmExtraConfigSideModuleAutoLoad->'%(Value)')</_ItexoftWasmSideModuleAutoLoadExisting>
-        <_ItexoftWasmSideModuleAutoLoadJson>$([System.String]::Join('&quot;,&quot;', @(_ItexoftWasmSideModuleAutoLoad->'%(Name)')))</_ItexoftWasmSideModuleAutoLoadJson>
-        <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' != ''">$(_ItexoftWasmSideModuleAutoLoadExisting)</_ItexoftWasmSideModuleAutoLoadValue>
-        <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' == '' and '$(_ItexoftWasmSideModuleAutoLoadJson)' != ''">[ &quot;$(_ItexoftWasmSideModuleAutoLoadJson)&quot; ]</_ItexoftWasmSideModuleAutoLoadValue>
-        <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' == '' and '$(_ItexoftWasmSideModuleAutoLoadJson)' == ''">[ ]</_ItexoftWasmSideModuleAutoLoadValue>
-    </PropertyGroup>
-
-    <ItemGroup Condition="'$(_ItexoftWasmSideModuleAutoLoadValue)' != ''">
-        <WasmExtraConfig Update="@(_ItexoftWasmExtraConfigSideModuleAutoLoad)">
-            <Value>$(_ItexoftWasmSideModuleAutoLoadValue)</Value>
-        </WasmExtraConfig>
-        <WasmExtraConfig Include="itexoftWasmSideModuleAutoLoad"
-                         Value="$(_ItexoftWasmSideModuleAutoLoadValue)"
-                         Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' == ''"/>
-    </ItemGroup>
-
-    <Target Name="_ItexoftGenerateBootExtensionJson"
-            Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)')">
-        <ItemGroup>
-            <_ItexoftWasmRuntimeModuleName Include="@(NativeWasmFileReference)">
-                <Name>%(Filename)</Name>
-            </_ItexoftWasmRuntimeModuleName>
-            <_ItexoftWasmRuntimeModulePath Include="@(NativeWasmFileReference)">
-                <Name>%(Filename)</Name>
-                <Path>$([System.String]::Copy($([System.IO.Path]::Combine('%(NativeWasmFileReference.PublishDir)', '%(Filename)%(Extension)'))).Replace('\\','/'))</Path>
-            </_ItexoftWasmRuntimeModulePath>
-            <_ItexoftWasmRuntimeModuleAutoLoad Include="@(NativeWasmFileReference->WithMetadataValue('_ItexoftAutoLoadNormalized','true'))">
-                <Name>%(Filename)</Name>
-            </_ItexoftWasmRuntimeModuleAutoLoad>
-            <_ItexoftWasmRuntimeModuleAutoLoad Include="@(NativeWasmFileReference->WithMetadataValue('_ItexoftAutoLoadNormalized',''))">
-                <Name>%(Filename)</Name>
-            </_ItexoftWasmRuntimeModuleAutoLoad>
-        </ItemGroup>
-
-        <PropertyGroup>
-            <_ItexoftWasmSideModulesExisting>@(_ItexoftWasmExtraConfigSideModules->'%(Value)')</_ItexoftWasmSideModulesExisting>
-            <_ItexoftWasmSideModulesJson>@(_ItexoftWasmRuntimeModuleName->'%(Name)', '&quot;,&quot;')</_ItexoftWasmSideModulesJson>
-            <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' != ''">$(_ItexoftWasmSideModulesExisting)</_ItexoftWasmSideModulesValue>
-            <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' == '' and '$(_ItexoftWasmSideModulesJson)' != ''">[ &quot;$(_ItexoftWasmSideModulesJson)&quot; ]</_ItexoftWasmSideModulesValue>
-            <_ItexoftWasmSideModulesValue Condition="'$(_ItexoftWasmSideModulesExisting)' == '' and '$(_ItexoftWasmSideModulesJson)' == ''">[ ]</_ItexoftWasmSideModulesValue>
-
-            <_ItexoftWasmSideModulePathsExisting>@(_ItexoftWasmExtraConfigSideModulePaths->'%(Value)')</_ItexoftWasmSideModulePathsExisting>
-            <_ItexoftWasmSideModulePathsJson>@(_ItexoftWasmRuntimeModulePath->'&quot;%(Name)&quot;:&quot;%(Path)&quot;', ',')</_ItexoftWasmSideModulePathsJson>
-            <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' != ''">$(_ItexoftWasmSideModulePathsExisting)</_ItexoftWasmSideModulePathsValue>
-            <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' == '' and '$(_ItexoftWasmSideModulePathsJson)' != ''">{ $(_ItexoftWasmSideModulePathsJson) }</_ItexoftWasmSideModulePathsValue>
-            <_ItexoftWasmSideModulePathsValue Condition="'$(_ItexoftWasmSideModulePathsExisting)' == '' and '$(_ItexoftWasmSideModulePathsJson)' == ''">{ }</_ItexoftWasmSideModulePathsValue>
-
-            <_ItexoftWasmSideModuleAutoLoadExisting>@(_ItexoftWasmExtraConfigSideModuleAutoLoad->'%(Value)')</_ItexoftWasmSideModuleAutoLoadExisting>
-            <_ItexoftWasmSideModuleAutoLoadJson>@(_ItexoftWasmRuntimeModuleAutoLoad->'%(Name)', '&quot;,&quot;')</_ItexoftWasmSideModuleAutoLoadJson>
-            <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' != ''">$(_ItexoftWasmSideModuleAutoLoadExisting)</_ItexoftWasmSideModuleAutoLoadValue>
-            <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' == '' and '$(_ItexoftWasmSideModuleAutoLoadJson)' != ''">[ &quot;$(_ItexoftWasmSideModuleAutoLoadJson)&quot; ]</_ItexoftWasmSideModuleAutoLoadValue>
-            <_ItexoftWasmSideModuleAutoLoadValue Condition="'$(_ItexoftWasmSideModuleAutoLoadExisting)' == '' and '$(_ItexoftWasmSideModuleAutoLoadJson)' == ''">[ ]</_ItexoftWasmSideModuleAutoLoadValue>
-        </PropertyGroup>
-
-        <PropertyGroup>
-            <_ItexoftWasmBootExtensionJsonPath>$(IntermediateOutputPath)itexoft.boot-extension.json</_ItexoftWasmBootExtensionJsonPath>
-            <_ItexoftWasmBootExtensionJson>{ &quot;itexoftWasmSideModules&quot;: $(_ItexoftWasmSideModulesValue), &quot;itexoftWasmSideModulePaths&quot;: $(_ItexoftWasmSideModulePathsValue), &quot;itexoftWasmSideModuleAutoLoad&quot;: $(_ItexoftWasmSideModuleAutoLoadValue) }</_ItexoftWasmBootExtensionJson>
-        </PropertyGroup>
-
-        <WriteLinesToFile File="$(_ItexoftWasmBootExtensionJsonPath)"
-                          Lines="$(_ItexoftWasmBootExtensionJson)"
-                          Overwrite="true"/>
-
-        <ItemGroup>
-            <FileWrites Include="$(_ItexoftWasmBootExtensionJsonPath)"/>
-            <WasmBootConfigExtension Include="$(_ItexoftWasmBootExtensionJsonPath)" Key="extra"/>
-        </ItemGroup>
-    </Target>
-
-    <Target Name="_ItexoftAddWasmSideModuleJsStaticWebAsset" Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderFile)')">
-        <ItemGroup>
-            <_ItexoftWasmSideModuleJsCandidate Include="$(_ItexoftWasmDynamicLinkingLoaderFile)">
-                <RelativePath>_framework/itexoft.wasm-side-module.js</RelativePath>
-            </_ItexoftWasmSideModuleJsCandidate>
-        </ItemGroup>
-
-        <ItemGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderBootstrapFile)')">
-            <_ItexoftWasmSideModuleJsBootstrapCandidate Include="$(_ItexoftWasmDynamicLinkingLoaderBootstrapFile)">
-                <RelativePath>_framework/itexoft.wasm-side-module.bootstrap.js</RelativePath>
-            </_ItexoftWasmSideModuleJsBootstrapCandidate>
-        </ItemGroup>
-
-        <DefineStaticWebAssets
-                CandidateAssets="@(_ItexoftWasmSideModuleJsCandidate)"
-                SourceId="$(PackageId)"
-                SourceType="Computed"
-                AssetKind="All"
-                AssetRole="Primary"
-                AssetTraitName="JSModule"
-                AssetTraitValue="JSLibraryModule"
-                CopyToOutputDirectory="PreserveNewest"
-                CopyToPublishDirectory="PreserveNewest"
-                ContentRoot="$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'js'))"
-                BasePath="$(StaticWebAssetBasePath)"
-        >
-            <Output TaskParameter="Assets" ItemName="_ItexoftWasmSideModuleJsStaticWebAsset"/>
-        </DefineStaticWebAssets>
-
-        <DefineStaticWebAssetEndpoints
-                CandidateAssets="@(_ItexoftWasmSideModuleJsStaticWebAsset)"
-                ExistingEndpoints="@(StaticWebAssetEndpoint)"
-                ContentTypeMappings="@(StaticWebAssetContentTypeMapping)"
-        >
-            <Output TaskParameter="Endpoints" ItemName="_ItexoftWasmSideModuleJsStaticWebAssetEndpoint"/>
-        </DefineStaticWebAssetEndpoints>
-
-        <DefineStaticWebAssets Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderBootstrapFile)')"
-                               CandidateAssets="@(_ItexoftWasmSideModuleJsBootstrapCandidate)"
-                               SourceId="$(PackageId)"
-                               SourceType="Computed"
-                               AssetKind="All"
-                               AssetRole="Primary"
-                               AssetTraitName="JSModule"
-                               AssetTraitValue="JSLibraryModule"
-                               CopyToOutputDirectory="PreserveNewest"
-                               CopyToPublishDirectory="PreserveNewest"
-                               ContentRoot="$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'js'))"
-                               BasePath="$(StaticWebAssetBasePath)"
-        >
-            <Output TaskParameter="Assets" ItemName="_ItexoftWasmSideModuleJsBootstrapStaticWebAsset"/>
-        </DefineStaticWebAssets>
-
-        <DefineStaticWebAssetEndpoints Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderBootstrapFile)')"
-                                       CandidateAssets="@(_ItexoftWasmSideModuleJsBootstrapStaticWebAsset)"
-                                       ExistingEndpoints="@(StaticWebAssetEndpoint)"
-                                       ContentTypeMappings="@(StaticWebAssetContentTypeMapping)"
-        >
-            <Output TaskParameter="Endpoints" ItemName="_ItexoftWasmSideModuleJsBootstrapStaticWebAssetEndpoint"/>
-        </DefineStaticWebAssetEndpoints>
-
-        <ItemGroup>
-            <StaticWebAsset Include="@(_ItexoftWasmSideModuleJsStaticWebAsset)"/>
-            <StaticWebAssetEndpoint Include="@(_ItexoftWasmSideModuleJsStaticWebAssetEndpoint)"/>
-            <WasmModuleAfterRuntimeReady Include="@(_ItexoftWasmSideModuleJsStaticWebAsset)"/>
-        </ItemGroup>
-
-        <ItemGroup Condition="Exists('$(_ItexoftWasmDynamicLinkingLoaderBootstrapFile)')">
-            <StaticWebAsset Include="@(_ItexoftWasmSideModuleJsBootstrapStaticWebAsset)"/>
-            <StaticWebAssetEndpoint Include="@(_ItexoftWasmSideModuleJsBootstrapStaticWebAssetEndpoint)"/>
-            <WasmModuleAfterConfigLoaded Include="@(_ItexoftWasmSideModuleJsBootstrapStaticWebAsset)"/>
-        </ItemGroup>
-    </Target>
-
-    <Target Name="_ItexoftAddNativeWasmStaticWebAssets" Condition="'@(NativeWasmFileReference)' != ''">
-        <ItemGroup>
-            <_ItexoftNativeWasmInvalidPublishDir Include="@(NativeWasmFileReference)"
-                                                 Condition="'%(NativeWasmFileReference.PublishDir)' != '' and $([System.IO.Path]::IsPathRooted('%(NativeWasmFileReference.PublishDir)'))"/>
-        </ItemGroup>
-
-        <Error Condition="'@(_ItexoftNativeWasmInvalidPublishDir)' != ''"
-               Text="NativeWasmFileReference PublishDir must be a relative path. Invalid: @(_ItexoftNativeWasmInvalidPublishDir->'%(PublishDir)')"/>
-
-        <ItemGroup>
-            <_ItexoftNativeWasmPublishCandidate Include="@(NativeWasmFileReference)">
-                <ContentRoot>$([System.IO.Path]::GetDirectoryName('%(FullPath)'))</ContentRoot>
-                <RelativePath>$([System.String]::Copy($([System.IO.Path]::Combine('%(NativeWasmFileReference.PublishDir)', '%(Filename)%(Extension)'))).Replace('\\','/'))</RelativePath>
-            </_ItexoftNativeWasmPublishCandidate>
-        </ItemGroup>
-
-        <DefineStaticWebAssets
-                CandidateAssets="@(_ItexoftNativeWasmPublishCandidate)"
-                SourceId="$(PackageId)"
-                SourceType="Computed"
-                AssetKind="All"
-                AssetRole="Primary"
-                CopyToOutputDirectory="PreserveNewest"
-                CopyToPublishDirectory="PreserveNewest"
-                BasePath="$(StaticWebAssetBasePath)"
-        >
-            <Output TaskParameter="Assets" ItemName="_ItexoftNativeWasmStaticWebAsset"/>
-        </DefineStaticWebAssets>
-
-        <DefineStaticWebAssetEndpoints
-                CandidateAssets="@(_ItexoftNativeWasmStaticWebAsset)"
-                ExistingEndpoints="@(StaticWebAssetEndpoint)"
-                ContentTypeMappings="@(StaticWebAssetContentTypeMapping)"
-        >
-            <Output TaskParameter="Endpoints" ItemName="_ItexoftNativeWasmStaticWebAssetEndpoint"/>
-        </DefineStaticWebAssetEndpoints>
-
-        <ItemGroup>
-            <StaticWebAsset Include="@(_ItexoftNativeWasmStaticWebAsset)"/>
-            <StaticWebAssetEndpoint Include="@(_ItexoftNativeWasmStaticWebAssetEndpoint)"/>
-        </ItemGroup>
-    </Target>
-
-    <Target Name="ItexoftPatchEmccLinkRspForDynamicLinking"
-            DependsOnTargets="ItexoftResolveRuntimeWasmPackageLayout"
-            AfterTargets="_WasmWriteRspForLinking"
-            BeforeTargets="WasmLinkDotNet;_WasmLinkDotNet;WasmLinkApp;_WasmLinkApp;_BrowserWasmLinkDotNet"
-            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and ('$(TargetPlatformIdentifier)' == 'browser' or '$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)') and Exists('$(_WasmLinkRsp)')">
-        <PropertyGroup>
-            <_ItexoftEmscriptenDylinkJsResolved>$(_ItexoftEmscriptenDylinkJs)</_ItexoftEmscriptenDylinkJsResolved>
-            <_ItexoftEmscriptenDylinkJsResolved Condition="'$(_ItexoftEmscriptenDylinkJsResolved)' == '' and '$(EmscriptenUpstreamEmscriptenPath)' != ''">$([MSBuild]::NormalizePath($(EmscriptenUpstreamEmscriptenPath), 'src', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJsResolved>
-            <_ItexoftEmscriptenDylinkJsResolved Condition="'$(_ItexoftEmscriptenDylinkJsResolved)' == '' and '$(EmscriptenSdkToolsPath)' != ''">$([MSBuild]::NormalizePath($(EmscriptenSdkToolsPath), 'emscripten', 'src', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJsResolved>
-        </PropertyGroup>
-
-        <ReadLinesFromFile File="$(_WasmLinkRsp)">
-            <Output TaskParameter="Lines" ItemName="_ItexoftEmccLinkRspLines"/>
-        </ReadLinesFromFile>
-
-        <ItemGroup>
-            <_ItexoftRspRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)*.a"
-                                                 Exclude="@(_MonoRuntimeComponentDontLink->'$(_ItexoftRuntimeWasmNativeVariantDir)%(Identity)')"/>
-            <_ItexoftRspRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmEHLib)" Condition="'$(_WasmEHLib)' != ''"/>
-            <_ItexoftRspRuntimeWasmNativeArchive Include="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmSIMDLib)" Condition="'$(_WasmSIMDLib)' != ''"/>
-            <_ItexoftRspRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmEHLibToExclude)"/>
-            <_ItexoftRspRuntimeWasmNativeArchive Remove="$(_ItexoftRuntimeWasmNativeVariantDir)$(_WasmSIMDLibToExclude)"/>
-        </ItemGroup>
-
-        <RemoveDuplicates Inputs="@(_ItexoftRspRuntimeWasmNativeArchive)">
-            <Output TaskParameter="Filtered" ItemName="_ItexoftRspRuntimeWasmDistinctNativeArchive"/>
-        </RemoveDuplicates>
-
-        <ItemGroup>
-            <_ItexoftRspRuntimeWasmNativeArchiveLine Include="@(_ItexoftRspRuntimeWasmDistinctNativeArchive->'&quot;%(Identity)&quot;')"/>
-
-            <_ItexoftEmccLinkRspLinesFiltered Include="@(_ItexoftEmccLinkRspLines)"
-                                              Condition="!$([System.String]::Copy('%(Identity)').Contains('MAIN_MODULE')) and !$([System.String]::Copy('%(Identity)').Contains('library_dylink.js')) and !$([System.String]::Copy('%(Identity)').Contains('.a&quot;'))"/>
-            <_ItexoftEmccLinkRspLinesFiltered Include="@(_ItexoftRspRuntimeWasmNativeArchiveLine)"/>
-            <_ItexoftEmccLinkRspLinesFiltered Include="$(_ItexoftEmccDynamicLinkFlags)"/>
-            <_ItexoftEmccLinkRspLinesFiltered Include="$(_ItexoftEmccDlopenExports)" Condition="'$(_ItexoftEmccDlopenExports)' != ''"/>
-            <_ItexoftEmccLinkRspLinesFiltered Include="--js-library &quot;$(_ItexoftEmscriptenDylinkJsResolved)&quot;" Condition="Exists('$(_ItexoftEmscriptenDylinkJsResolved)')"/>
-        </ItemGroup>
-
-        <WriteLinesToFile File="$(_WasmLinkRsp)"
-                          Lines="@(_ItexoftEmccLinkRspLinesFiltered)"
-                          Overwrite="true"
-                          WriteOnlyWhenDifferent="true"
-                          Encoding="UTF-8"/>
-    </Target>
-
-    <Target Name="ItexoftVerifyEmccLinkRspForDynamicLinking"
-            AfterTargets="ItexoftPatchEmccLinkRspForDynamicLinking"
-            BeforeTargets="WasmLinkDotNet;_WasmLinkDotNet;WasmLinkApp;_WasmLinkApp;_BrowserWasmLinkDotNet"
-            Condition="'$(_ItexoftWasmDynamicLinkingEnabled)' == 'true' and ('$(TargetPlatformIdentifier)' == 'browser' or '$(RuntimeIdentifier)' == '$(_ItexoftWasmRid)') and Exists('$(_WasmLinkRsp)')">
-        <PropertyGroup>
-            <_ItexoftEmscriptenDylinkJsResolved>$(_ItexoftEmscriptenDylinkJs)</_ItexoftEmscriptenDylinkJsResolved>
-            <_ItexoftEmscriptenDylinkJsResolved Condition="'$(_ItexoftEmscriptenDylinkJsResolved)' == '' and '$(EmscriptenUpstreamEmscriptenPath)' != ''">$([MSBuild]::NormalizePath($(EmscriptenUpstreamEmscriptenPath), 'src', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJsResolved>
-            <_ItexoftEmscriptenDylinkJsResolved Condition="'$(_ItexoftEmscriptenDylinkJsResolved)' == '' and '$(EmscriptenSdkToolsPath)' != ''">$([MSBuild]::NormalizePath($(EmscriptenSdkToolsPath), 'emscripten', 'src', 'library_dylink.js'))</_ItexoftEmscriptenDylinkJsResolved>
-        </PropertyGroup>
-
-        <Error Condition="'$(_ItexoftEmscriptenDylinkJsResolved)' == '' or !Exists('$(_ItexoftEmscriptenDylinkJsResolved)')"
-               Text="Emscripten library_dylink.js not found at '$(_ItexoftEmscriptenDylinkJsResolved)'. Dynamic linking requires this file."/>
-        <ReadLinesFromFile File="$(_WasmLinkRsp)">
-            <Output TaskParameter="Lines" ItemName="_ItexoftEmccLinkRspLinesVerify"/>
-        </ReadLinesFromFile>
-
-        <ItemGroup>
-            <_ItexoftEmccExpectedMainModuleLine Include="@(_ItexoftEmccLinkRspLinesVerify)"
-                                                Condition="$([System.String]::Copy('%(Identity)').Contains('-s MAIN_MODULE=$(_ItexoftWasmMainModuleLevelValue)'))"/>
-        </ItemGroup>
-
-        <Error Condition="'@(_ItexoftEmccExpectedMainModuleLine)' == ''"
-               Text="Expected '-s MAIN_MODULE=$(_ItexoftWasmMainModuleLevelValue)' in $(_WasmLinkRsp)."/>
     </Target>
 </Project>

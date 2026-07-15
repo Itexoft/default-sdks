@@ -1,6 +1,16 @@
 <Project>
     <PropertyGroup>
-        <DefineConstants Condition="'$(PublishAot)' == true">NativeAOT</DefineConstants>
-        <DefineConstants Condition="'$(UsingMicrosoftNETSdkBlazorWebAssembly)' == 'true'">BlazorWebAssembly</DefineConstants>
+        <_ItexoftNetMajor Condition="'$(TargetFramework)' != ''">$([System.Text.RegularExpressions.Regex]::Match('$(TargetFramework)', '\d+').Value)</_ItexoftNetMajor>
+        <_ItexoftIsBrowserTargetFramework Condition="'$(TargetFramework)' != '' and '$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'browser'">true</_ItexoftIsBrowserTargetFramework>
+        <_ItexoftIsBrowserTargetFramework Condition="'$(_ItexoftIsBrowserTargetFramework)' == ''">false</_ItexoftIsBrowserTargetFramework>
+        <RuntimeIdentifier Condition="'$(_ItexoftIsBrowserTargetFramework)' == 'true' and '$(RuntimeIdentifier)' == ''">$(BrowserWasmRuntimeIdentifier)</RuntimeIdentifier>
+        <IsBrowserWasm Condition="'$(_ItexoftIsBrowserTargetFramework)' == 'true' or '$(RuntimeIdentifier)' == '$(BrowserWasmRuntimeIdentifier)'">true</IsBrowserWasm>
+        <IsBrowserWasm Condition="'$(IsBrowserWasm)' == ''">false</IsBrowserWasm>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <DefineConstants Condition="'$(PublishAot)' == 'true'">$(DefineConstants);NativeAOT</DefineConstants>
+        <DefineConstants Condition="'$(UsingMicrosoftNETSdkBlazorWebAssembly)' == 'true'">$(DefineConstants);BlazorWebAssembly</DefineConstants>
+        <DefineConstants Condition="'$(IsBrowserWasm)' == 'true'">$(DefineConstants);BrowserWasm</DefineConstants>
     </PropertyGroup>
 </Project>

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.Build.NoTargets/3.7.134">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <PackageId>Itexoft.NET.Sdk</PackageId>
         <PackageTags>sdk;wasm;webassembly;nativeaot;mono;aot;browser-wasm;itexoft</PackageTags>
         <Description>Wrapper over Microsoft.NET.Sdk from Itexoft</Description>
     </PropertyGroup>
